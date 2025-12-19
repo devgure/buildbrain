@@ -1,0 +1,31 @@
+_format_version: "2.1"
+_transform: true
+
+services:
+  - name: buildbrain-backend
+    url: http://buildbrain-backend:4000
+    routes:
+      - name: backend-route
+        paths:
+          - /
+        strip_path: false
+  - name: donut-ocr
+    url: http://donut-gpu:8000
+    routes:
+      - name: donut-ocr-route
+        paths:
+          - /ocr
+        strip_path: true
+plugins:
+  - name: openid-connect
+    service: donut-ocr
+    enabled: true
+    config:
+      discovery: "https://${AUTH0_DOMAIN}/.well-known/openid-configuration"
+      client_id: "${AUTH0_CLIENT_ID}"
+      client_secret: "${AUTH0_CLIENT_SECRET}"
+      bearer_only: true
+      introspect: false
+  - name: key-auth
+    service: buildbrain-backend
+    enabled: false
