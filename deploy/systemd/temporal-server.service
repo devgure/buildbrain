@@ -1,0 +1,15 @@
+[Unit]
+Description=Temporal Server (auto-setup image)
+After=docker.service network.target
+
+[Service]
+Type=simple
+User=www-data
+Restart=on-failure
+EnvironmentFile=/etc/default/buildbrain
+# The auto-setup image provides a single-container dev temporal server
+ExecStart=/usr/bin/docker run --rm --name temporal -p 7233:7233 temporalio/auto-setup:1.22.0
+TimeoutStartSec=240
+
+[Install]
+WantedBy=multi-user.target

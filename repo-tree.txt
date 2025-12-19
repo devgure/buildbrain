@@ -1,0 +1,103 @@
+D ai-agents/
+F ai-agents/blueprint-analyzer/Dockerfile
+F ai-agents/blueprint-analyzer/main.py
+F ai-agents/material-delay-bot/Dockerfile
+F ai-agents/material-delay-bot/main.py
+F ai-agents/safety-inspector/Dockerfile
+F ai-agents/safety-inspector/main.py
+F ai-agents/sub-coordinator/Dockerfile
+F ai-agents/sub-coordinator/main.py
+
+D api-gateway/
+F api-gateway/auth0-script.js
+F api-gateway/kong.yaml
+F api-gateway/import_jwks.py
+F api-gateway/import_jwks_auto.py
+D api-gateway/tests/
+
+D backend/
+F backend/index.js
+D backend/routes/
+F backend/routes/upload.js
+F backend/routes/rfi.js
+F backend/routes/email.js
+F backend/routes/billing.js
+F backend/routes/stripe_webhooks.js
+D backend/services/
+F backend/services/minioClient.js
+F backend/services/ocrService.js
+F backend/services/donutClient.js
+F backend/services/embeddingsService.js
+F backend/services/qdrantClient.js
+F backend/services/stripeService.js
+F backend/services/i18nService.js
+F backend/services/emailParser.js
+F backend/prismaClient.js
+D backend/tests/
+F backend/package.json
+
+D backend/ocr_donut/
+F backend/ocr_donut/app.py
+F backend/ocr_donut/Dockerfile.prod
+F backend/ocr_donut/Dockerfile.gpu.prod
+
+D backend/pinecone_stub/
+F backend/pinecone_stub/app.py
+F backend/pinecone_stub/Dockerfile.prod
+
+D business-logic/
+F business-logic/compliance-rules/main.py
+F business-logic/risk-model/main.py
+F business-logic/schedule-engine/main.py
+
+D clients/
+F clients/field-app/Dockerfile
+F clients/field-app/package.json
+F clients/field-app/src/App.js
+F clients/procore-plugin/Dockerfile
+F clients/procore-plugin/package.json
+F clients/procore-plugin/src/App.js
+F clients/web-portal/Dockerfile
+F clients/web-portal/package.json
+F clients/web-portal/src/App.js
+
+D data-layer/
+F data-layer/mongodb/init.js
+F data-layer/neo4j/init.cypher
+F data-layer/pinecone/init.py
+F data-layer/redis/init.sh
+
+D external-integrations/
+F external-integrations/bluebeam/main.py
+F external-integrations/insurance-api/main.py
+F external-integrations/procore/main.py
+
+D orchestrator/
+F orchestrator/docker-compose.yml
+D orchestrator/temporal/
+F orchestrator/temporal/worker.go
+F orchestrator/temporal/workflow.go
+
+D prisma/
+F prisma/schema.prisma
+
+D deploy/
+F deploy/scripts/deploy.sh
+F deploy/README-ubuntu-vps.md
+D deploy/systemd/
+F deploy/nginx/buildbrain.conf
+
+D .github/workflows/
+F .github/workflows/node-tests.yml
+F .github/workflows/ci.yml
+
+D scripts/
+F scripts/create_pr.sh
+F scripts/create_pr.ps1
+F scripts/init_repo_structure.sh
+
+F README.md
+F REPO_STRUCTURE.md
+F brouillon.txt
+F docker-compose.yml
+F .env.example

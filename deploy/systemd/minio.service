@@ -1,0 +1,14 @@
+[Unit]
+Description=MinIO Object Storage
+After=docker.service network.target
+
+[Service]
+Type=simple
+User=www-data
+Restart=on-failure
+EnvironmentFile=/etc/default/buildbrain
+ExecStart=/usr/bin/docker run --rm --name minio -p 9000:9000 -p 9001:9001 -v /opt/buildbrain/minio/data:/data -e MINIO_ROOT_USER=${MINIO_ROOT_USER} -e MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD} minio/minio:latest server /data --console-address ":9001"
+TimeoutStartSec=120
+
+[Install]
+WantedBy=multi-user.target

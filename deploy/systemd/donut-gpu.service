@@ -1,0 +1,13 @@
+[Unit]
+Description=BuildBrain Donut OCR (GPU)
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Restart=on-failure
+ExecStart=/usr/bin/docker run --rm --gpus all --name buildbrain-donut-gpu -p 8000:8000 buildbrain/donut-gpu:latest
+TimeoutStartSec=240
+
+[Install]
+WantedBy=multi-user.target

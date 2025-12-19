@@ -1,0 +1,13 @@
+[Unit]
+Description=BuildBrain Temporal Worker
+After=docker.service network.target
+
+[Service]
+Type=simple
+User=www-data
+Restart=on-failure
+ExecStart=/usr/bin/docker run --rm --name buildbrain-temporal-worker buildbrain/temporal-worker:latest
+TimeoutStartSec=120
+
+[Install]
+WantedBy=multi-user.target

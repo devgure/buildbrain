@@ -1,0 +1,10 @@
+# Multi-stage build for Go-based Temporal worker
+FROM golang:1.20 as builder
+WORKDIR /src
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -o worker .
+
+FROM gcr.io/distroless/static-debian11
+COPY --from=builder /src/worker /worker
+EXPOSE 7233
+ENTRYPOINT ["/worker"]

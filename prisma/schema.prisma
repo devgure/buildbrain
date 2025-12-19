@@ -1,0 +1,123 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @map("_id") @default(auto()) @db.ObjectId
+  email     String   @unique
+  name      String?
+  role      String
+  createdAt DateTime @default(now())
+}
+
+model Project {
+  id           String   @id @map("_id") @default(auto()) @db.ObjectId
+  name         String
+  ownerId      String   @db.ObjectId
+  siteAddress  String?
+  timezone     String?
+  metadata     Json?
+  createdAt    DateTime @default(now())
+}
+
+model Blueprint {
+  id            String   @id @map("_id") @default(auto()) @db.ObjectId
+  projectId     String   @db.ObjectId
+  filename      String
+  fileUrl       String
+  pages         Int
+  extractedText String?
+  metadata      Json?
+  embeddings    Json?
+  createdAt     DateTime @default(now())
+}
+
+model RFI {
+  id          String   @id @map("_id") @default(auto()) @db.ObjectId
+  projectId   String   @db.ObjectId
+  title       String
+  description String
+  status      String
+  requesterId String   @db.ObjectId
+  assigneeId  String?  @db.ObjectId
+  linkedDocs  Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime?
+}
+
+model Subcontractor {
+  id           String   @id @map("_id") @default(auto()) @db.ObjectId
+  companyName  String
+  contacts     Json
+  insurance    Json
+  onboarding   String?
+  createdAt    DateTime @default(now())
+}
+
+model InsuranceDoc {
+  id          String   @id @map("_id") @default(auto()) @db.ObjectId
+  projectId   String?  @db.ObjectId
+  subId       String?  @db.ObjectId
+  fileUrl     String
+  parsedData  Json
+  validUntil  DateTime?
+  createdAt   DateTime @default(now())
+}
+
+model ScheduleTask {
+  id           String   @id @map("_id") @default(auto()) @db.ObjectId
+  projectId    String   @db.ObjectId
+  title        String
+  startDate    DateTime?
+  endDate      DateTime?
+  assigneeId   String?  @db.ObjectId
+  dependencies String[]
+  metadata     Json?
+  createdAt    DateTime @default(now())
+}
+
+model Event {
+  id        String   @id @map("_id") @default(auto()) @db.ObjectId
+  projectId String   @db.ObjectId
+  type      String
+  payload   Json
+  createdAt DateTime @default(now())
+}
+
+model Subscription {
+  id             String   @id @map("_id") @default(auto()) @db.ObjectId
+  userId         String   @db.ObjectId
+  stripeCustomer String?
+  stripeSubId    String?
+  plan           String
+  status         String
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  cancelAtPeriodEnd  Boolean  @default(false)
+  metadata       Json?
+  createdAt      DateTime @default(now())
+}
+
+model Invoice {
+  id           String   @id @map("_id") @default(auto()) @db.ObjectId
+  subscriptionId String? @db.ObjectId
+  stripeInvoiceId String?
+  amount       Int
+  currency     String
+  paid         Boolean  @default(false)
+  pdfUrl       String?
+  createdAt    DateTime @default(now())
+}
+
+model UsageRecord {
+  id             String   @id @map("_id") @default(auto()) @db.ObjectId
+  subscriptionId String   @db.ObjectId
+  feature        String
+  quantity       Int
+  recordedAt     DateTime @default(now())
+}

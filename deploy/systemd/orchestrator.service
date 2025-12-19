@@ -1,0 +1,13 @@
+[Unit]
+Description=BuildBrain Orchestrator
+After=docker.service network.target
+
+[Service]
+Type=simple
+User=www-data
+Restart=on-failure
+ExecStart=/usr/bin/docker run --rm --name buildbrain-orchestrator buildbrain/orchestrator:latest
+TimeoutStartSec=120
+
+[Install]
+WantedBy=multi-user.target

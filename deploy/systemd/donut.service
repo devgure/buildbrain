@@ -1,0 +1,13 @@
+[Unit]
+Description=BuildBrain Donut OCR (CPU)
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Restart=on-failure
+ExecStart=/usr/bin/docker run --rm --name buildbrain-donut -p 8000:8000 buildbrain/donut:latest
+TimeoutStartSec=120
+
+[Install]
+WantedBy=multi-user.target

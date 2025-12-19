@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  mongo:
+    image: mongo:6.0
+    restart: unless-stopped
+    volumes:
+      - mongo-data:/data/db
+    ports:
+      - "27017:27017"
+
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    restart: unless-stopped
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant-storage:/qdrant/storage
+
+  minio:
+    image: minio/minio:latest
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio123
+    ports:
+      - "9000:9000"
+    volumes:
+      - minio-data:/data
+
+  kong:
+    image: kong:3.6
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: "/kong/kong.yaml"
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+    ports:
+      - "8000:8000"   # proxy
+      - "8443:8443"   # proxy ssl
+      - "8001:8001"   # admin
+    volumes:
+      - ./api-gateway/kong.yaml:/kong/kong.yaml:ro
+    restart: unless-stopped
+
+  donut-gpu:
+    build:
+      context: ./backend/ocr_donut
+      dockerfile: Dockerfile.gpu
+    image: buildbrain-donut:gpu
+    environment:
+      - DONUT_MODEL=${DONUT_MODEL}
+      - USE_CUDA=true
+    ports:
+      - "8000:8000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+
+volumes:
+  mongo-data:
+  qdrant-storage:
+  minio-data:

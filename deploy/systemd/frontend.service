@@ -1,0 +1,12 @@
+[Unit]
+Description=BuildBrain Frontend (served by nginx)
+After=network.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/nginx -c /etc/nginx/nginx.conf
+ExecStop=/usr/sbin/nginx -s quit
+
+[Install]
+WantedBy=multi-user.target

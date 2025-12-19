@@ -1,0 +1,15 @@
+[Unit]
+Description=Kong API Gateway (DB-less via declarative config)
+After=docker.service network.target
+
+[Service]
+Type=simple
+User=www-data
+Restart=on-failure
+EnvironmentFile=/etc/default/buildbrain
+# mount config directory if you use declarative kong.yaml at /opt/buildbrain/api-gateway/kong.yaml
+ExecStart=/usr/bin/docker run --rm --name kong -p 8000:8000 -p 8001:8001 -v /opt/buildbrain/api-gateway:/kong/declarative kong:3.3.0 kong start --nginx-conf /etc/kong/kong.conf
+TimeoutStartSec=120
+
+[Install]
+WantedBy=multi-user.target

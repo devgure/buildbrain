@@ -1,0 +1,14 @@
+[Unit]
+Description=Qdrant vector DB
+After=docker.service network.target
+
+[Service]
+Type=simple
+User=www-data
+Restart=on-failure
+EnvironmentFile=/etc/default/buildbrain
+ExecStart=/usr/bin/docker run --rm --name qdrant -p 6333:6333 -v /opt/buildbrain/qdrant/storage:/qdrant/storage qdrant/qdrant:latest
+TimeoutStartSec=120
+
+[Install]
+WantedBy=multi-user.target

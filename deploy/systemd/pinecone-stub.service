@@ -1,0 +1,14 @@
+[Unit]
+Description=BuildBrain Pinecone Stub
+After=docker.service network.target
+
+[Service]
+Type=simple
+User=www-data
+Restart=on-failure
+EnvironmentFile=/etc/default/buildbrain
+ExecStart=/usr/bin/docker run --rm --name pinecone-stub -p 8100:8100 buildbrain/pinecone-stub:latest
+TimeoutStartSec=120
+
+[Install]
+WantedBy=multi-user.target
