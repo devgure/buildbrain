@@ -1480,7 +1480,74 @@ buildbrain-os/
 
 
 
+//////////
 
+#!/usr/bin/env bash
+# buildbrain-os.sh – create the full BuildBrain-OS skeleton (dirs + empty files)
+
+set -euo pipefail
+
+# Helper: create dir + empty file(s)
+mk() {
+  local dir="${1%/*}"
+  mkdir -p "$dir"
+  [ "${1##*/}" != "." ] && touch "$1"
+}
+
+# ---------- apps/mobile ----------
+mk buildbrain-os/apps/mobile/app.json
+mk buildbrain-os/apps/mobile/App.tsx
+mk buildbrain-os/apps/mobile/components/.
+mk buildbrain-os/apps/mobile/screens/Dashboard.tsx
+mk buildbrain-os/apps/mobile/screens/Projects/.
+mk buildbrain-os/apps/mobile/screens/BlueprintViewer.tsx
+mk buildbrain-os/apps/mobile/screens/SafetyInspection.tsx
+mk buildbrain-os/apps/mobile/screens/BidMarketplace.tsx
+mk buildbrain-os/apps/mobile/lib/database/.
+mk buildbrain-os/apps/mobile/lib/location/.
+mk buildbrain-os/apps/mobile/lib/voice/.
+mk buildbrain-os/apps/mobile/package.json
+
+# ---------- apps/web ----------
+mk buildbrain-os/apps/web/app/.
+mk buildbrain-os/apps/web/components/.
+mk buildbrain-os/apps/web/lib/.
+mk buildbrain-os/apps/web/package.json
+
+# ---------- packages ----------
+pkgs=(
+  api-gateway auth-service user-service project-service document-service
+  compliance-service agent-orchestrator marketplace-service notification-service
+  ai-agents-core shared-types
+)
+for p in "${pkgs[@]}"; do
+  mk "buildbrain-os/packages/$p/."
+done
+
+# ---------- services ----------
+svcs=(
+  blueprint-agent safety-agent compliance-ocr-agent bid-scraper-agent
+  scheduler-agent
+)
+for s in "${svcs[@]}"; do
+  mk "buildbrain-os/services/$s/."
+done
+
+# ---------- infrastructure ----------
+mk buildbrain-os/infrastructure/docker-compose.yml
+mk buildbrain-os/infrastructure/kubernetes/.
+mk buildbrain-os/infrastructure/terraform/.
+mk buildbrain-os/infrastructure/prometheus/.
+
+# ---------- databases ----------
+mk buildbrain-os/databases/mongodb/.
+mk buildbrain-os/databases/neo4j/.
+mk buildbrain-os/databases/qdrant/.
+
+# ---------- root ----------
+mk buildbrain-os/README.md
+
+echo "✅  BuildBrain-OS skeleton created successfully."
 
 
 
@@ -1498,4 +1565,5 @@ buildbrain-os/
 
 
 #
+
 
