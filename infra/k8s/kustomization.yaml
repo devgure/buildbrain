@@ -1,0 +1,106 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: buildbrain-prod
+
+# Replicas for services
+replicas:
+  - name: api-gateway
+    count: 3
+  - name: notification-service
+    count: 2
+  - name: analytics-service
+    count: 2
+  - name: user-service
+    count: 2
+  - name: project-service
+    count: 2
+  - name: payment-service
+    count: 3
+
+# Common labels applied to all resources
+commonLabels:
+  app.kubernetes.io/name: buildbrain
+  app.kubernetes.io/version: v1.0.0
+  app.kubernetes.io/managed-by: kustomize
+  environment: production
+
+# Common annotations
+commonAnnotations:
+  description: "BuildBrain Production Deployment"
+  repository: "https://github.com/buildbrain/buildbrain"
+
+# Resources to include
+resources:
+  - namespace.yaml
+  - postgres-deployment.yaml
+  - redis-deployment.yaml
+  - configmap.yaml
+  - api-gateway-deployment.yaml
+  - ingress.yaml
+
+# Image tags to update
+images:
+  - name: buildbrain/api-gateway
+    newTag: "latest"
+  - name: buildbrain/user-service
+    newTag: "latest"
+  - name: buildbrain/notification-service
+    newTag: "latest"
+  - name: buildbrain/analytics-service
+    newTag: "latest"
+  - name: buildbrain/payment-service
+    newTag: "latest"
+  - name: buildbrain/project-service
+    newTag: "latest"
+
+# Variable replacements
+vars:
+  - name: NAMESPACE
+    objref:
+      kind: Namespace
+      name: buildbrain-prod
+  - name: POSTGRES_HOST
+    objref:
+      kind: Service
+      name: postgres
+    fieldref:
+      fieldpath: metadata.name
+  - name: REDIS_HOST
+    objref:
+      kind: Service
+      name: redis
+    fieldref:
+      fieldpath: metadata.name
+
+# Patches to apply
+patchesJson6902:
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: api-gateway
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 3
+
+# Configuration hash for pod restarts
+configMapGenerator:
+  - name: app-config
+    behavior: merge
+    literals:
+      - DEPLOYMENT_DATE=$(date +%s)
+
+# Pod disruption budgets for high availability
+podDisruptionBudgets:
+  - name: api-gateway-pdb
+    selector:
+      matchLabels:
+        app: api-gateway
+    minAvailable: 2
+  - name: payment-service-pdb
+    selector:
+      matchLabels:
+        app: payment-service
+    minAvailable: 2

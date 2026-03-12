@@ -1,0 +1,62 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: buildbrain-prod
+  labels:
+    name: buildbrain-prod
+    environment: production
+  annotations:
+    description: "BuildBrain Production Environment"
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: buildbrain-quota
+  namespace: buildbrain-prod
+spec:
+  hard:
+    requests.cpu: "100"
+    requests.memory: "256Gi"
+    limits.cpu: "200"
+    limits.memory: "512Gi"
+    pods: "500"
+    persistentvolumeclaims: "10"
+  scopeSelector:
+    matchExpressions:
+      - operator: In
+        scopeName: PriorityClass
+        values: ["high", "medium", "low"]
+---
+apiVersion: v1
+kind: NetworkPolicy
+metadata:
+  name: buildbrain-network-policy
+  namespace: buildbrain-prod
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: buildbrain-prod
+        - podSelector: {}
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: buildbrain-prod
+    - to:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 53
+    - to:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443

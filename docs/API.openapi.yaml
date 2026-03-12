@@ -1,0 +1,1457 @@
+openapi: 3.0.0
+info:
+  title: BuildBrainOS API
+  description: |
+    Complete REST API specification for BuildBrainOS platform.
+    All endpoints require JWT authentication in Authorization header.
+    
+    Base URLs:
+    - Development: http://localhost:4000/api/v1
+    - Production: https://api.buildbrainos.com/api/v1
+    
+    Authentication:
+    - JWT Bearer Token in Authorization header
+    - Refresh tokens valid for 30 days
+    - Rate limiting: 1000 requests/hour per user
+  version: 1.0.0
+  contact:
+    name: BuildBrainOS Support
+    email: support@buildbrainos.com
+  license:
+    name: Proprietary
+
+servers:
+  - url: http://localhost:4000/api/v1
+    description: Development server
+  - url: https://api.buildbrainos.com/api/v1
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: User authentication and authorization
+  - name: Users
+    description: User management and profiles
+  - name: Projects
+    description: Construction project management
+  - name: Marketplace
+    description: Worker and bid marketplace
+  - name: Payments
+    description: Payment processing and ledger
+  - name: Documents
+    description: Document management and verification
+  - name: Compliance
+    description: Compliance and regulatory
+  - name: AI
+    description: AI agents and automation
+  - name: Government
+    description: Government procurement
+
+paths:
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register new user
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+                - role
+                - companyName
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: gc@constructionco.com
+                password:
+                  type: string
+                  minLength: 8
+                  example: SecurePass123!
+                role:
+                  type: string
+                  enum: [GC, SUBCONTRACTOR, WORKER, GOVERNMENT, SUPPLIER]
+                  example: GC
+                companyName:
+                  type: string
+                  example: BuildCorp Solutions
+                phone:
+                  type: string
+                  example: +1-555-123-4567
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Validation error
+        '409':
+          description: Email already exists
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: User login
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Invalid credentials
+
+  /auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: Refresh access token
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refreshToken
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '200':
+          description: New tokens issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+
+  /auth/kyc/start:
+    post:
+      tags:
+        - Authentication
+      summary: Start KYC verification
+      operationId: startKYC
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - tier
+              properties:
+                tier:
+                  type: string
+                  enum: [TIER_1, TIER_2, TIER_3]
+                  description: KYC verification tier
+      responses:
+        '200':
+          description: KYC process initiated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  kycInquiryId:
+                    type: string
+                  redirectUrl:
+                    type: string
+                  expiresAt:
+                    type: string
+                    format: date-time
+
+  /users/profile:
+    get:
+      tags:
+        - Users
+      summary: Get current user profile
+      operationId: getUserProfile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+    patch:
+      tags:
+        - Users
+      summary: Update user profile
+      operationId: updateUserProfile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                phone:
+                  type: string
+                bio:
+                  type: string
+                avatar:
+                  type: string
+                  format: uri
+                address:
+                  $ref: '#/components/schemas/Address'
+      responses:
+        '200':
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /users/{userId}:
+    get:
+      tags:
+        - Users
+      summary: Get user profile by ID
+      operationId: getUserById
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /projects:
+    post:
+      tags:
+        - Projects
+      summary: Create new project
+      operationId: createProject
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - location
+                - budget
+                - timeline
+              properties:
+                title:
+                  type: string
+                  example: Downtown Office Complex - Phase 2
+                description:
+                  type: string
+                location:
+                  $ref: '#/components/schemas/Address'
+                budget:
+                  type: number
+                  format: double
+                  example: 1200000
+                timeline:
+                  type: object
+                  properties:
+                    startDate:
+                      type: string
+                      format: date
+                    endDate:
+                      type: string
+                      format: date
+                scope:
+                  type: array
+                  items:
+                    type: string
+                  example: [Framing, Electrical, Plumbing]
+      responses:
+        '201':
+          description: Project created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+
+    get:
+      tags:
+        - Projects
+      summary: List user's projects
+      operationId: listProjects
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [ACTIVE, COMPLETED, PAUSED, ARCHIVED]
+        - name: skip
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: List of projects
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Project'
+                  total:
+                    type: integer
+                  skip:
+                    type: integer
+                  limit:
+                    type: integer
+
+  /projects/{projectId}:
+    get:
+      tags:
+        - Projects
+      summary: Get project details
+      operationId: getProject
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Project details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+
+    patch:
+      tags:
+        - Projects
+      summary: Update project
+      operationId: updateProject
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                status:
+                  type: string
+                  enum: [ACTIVE, COMPLETED, PAUSED, ARCHIVED]
+                budget:
+                  type: number
+      responses:
+        '200':
+          description: Project updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+
+  /projects/{projectId}/milestones:
+    post:
+      tags:
+        - Projects
+      summary: Create project milestone
+      operationId: createMilestone
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - amount
+                - dueDate
+              properties:
+                title:
+                  type: string
+                  example: Foundation Complete
+                description:
+                  type: string
+                amount:
+                  type: number
+                  format: double
+                dueDate:
+                  type: string
+                  format: date
+                deliverables:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '201':
+          description: Milestone created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Milestone'
+
+    get:
+      tags:
+        - Projects
+      summary: List project milestones
+      operationId: listMilestones
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of milestones
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Milestone'
+
+  /marketplace/workers:
+    get:
+      tags:
+        - Marketplace
+      summary: Search available workers
+      operationId: searchWorkers
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: skills
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+          example: [Electrical, NEC Certified]
+        - name: location
+          in: query
+          schema:
+            type: string
+          example: Downtown, TX
+        - name: radius
+          in: query
+          schema:
+            type: number
+            default: 50
+            description: Search radius in miles
+        - name: minRating
+          in: query
+          schema:
+            type: number
+            minimum: 0
+            maximum: 5
+      responses:
+        '200':
+          description: List of available workers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WorkerProfile'
+
+  /marketplace/bids:
+    post:
+      tags:
+        - Marketplace
+      summary: Submit project bid
+      operationId: submitBid
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - projectId
+                - amount
+                - timeline
+              properties:
+                projectId:
+                  type: string
+                amount:
+                  type: number
+                  format: double
+                timeline:
+                  type: object
+                  properties:
+                    startDate:
+                      type: string
+                      format: date
+                    completionDate:
+                      type: string
+                      format: date
+                proposal:
+                  type: string
+                  description: Detailed bid proposal text
+                attachment:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Bid submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bid'
+
+  /marketplace/bids/{bidId}:
+    get:
+      tags:
+        - Marketplace
+      summary: Get bid details
+      operationId: getBid
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: bidId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Bid details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bid'
+
+  /payments/ledger:
+    post:
+      tags:
+        - Payments
+      summary: Request payment approval
+      operationId: requestPayment
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - projectId
+                - milestoneId
+                - amount
+              properties:
+                projectId:
+                  type: string
+                milestoneId:
+                  type: string
+                amount:
+                  type: number
+                  format: double
+                description:
+                  type: string
+                documentProof:
+                  type: array
+                  items:
+                    type: string
+                    format: uri
+                  description: Photo/document URLs for verification
+      responses:
+        '201':
+          description: Payment request created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+
+  /payments/ledger/{paymentId}:
+    get:
+      tags:
+        - Payments
+      summary: Get payment details
+      operationId: getPayment
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: paymentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Payment details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+
+    patch:
+      tags:
+        - Payments
+      summary: Update payment status
+      operationId: updatePaymentStatus
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: paymentId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [APPROVED, REJECTED, CANCELLED]
+                note:
+                  type: string
+      responses:
+        '200':
+          description: Payment updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+
+  /payments/wallet:
+    get:
+      tags:
+        - Payments
+      summary: Get user wallet balance
+      operationId: getWallet
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Wallet information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Wallet'
+
+  /payments/withdraw:
+    post:
+      tags:
+        - Payments
+      summary: Request fund withdrawal
+      operationId: requestWithdrawal
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - amount
+                - method
+              properties:
+                amount:
+                  type: number
+                  format: double
+                method:
+                  type: string
+                  enum: [ACH, WIRE, CARD]
+                bankAccount:
+                  type: object
+                  properties:
+                    accountNumber:
+                      type: string
+                    routingNumber:
+                      type: string
+                    accountType:
+                      type: string
+                      enum: [CHECKING, SAVINGS]
+      responses:
+        '201':
+          description: Withdrawal initiated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  withdrawalId:
+                    type: string
+                  status:
+                    type: string
+                  estimatedArrival:
+                    type: string
+                    format: date
+
+  /documents/upload:
+    post:
+      tags:
+        - Documents
+      summary: Upload project document
+      operationId: uploadDocument
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+                - type
+              properties:
+                file:
+                  type: string
+                  format: binary
+                type:
+                  type: string
+                  enum: [CONTRACT, LIEN_WAIVER, INSURANCE, LICENSE, BLUEPRINT, PERMIT, RFI]
+                projectId:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '201':
+          description: Document uploaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+
+  /documents/{documentId}/verify:
+    post:
+      tags:
+        - Documents
+      summary: Verify and extract document data
+      operationId: verifyDocument
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Document verified
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  documentId:
+                    type: string
+                  verified:
+                    type: boolean
+                  extractedData:
+                    type: object
+                  aiConfidence:
+                    type: number
+                    minimum: 0
+                    maximum: 1
+
+  /compliance/check:
+    post:
+      tags:
+        - Compliance
+      summary: Run compliance check on user
+      operationId: runComplianceCheck
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - userId
+                - checkType
+              properties:
+                userId:
+                  type: string
+                checkType:
+                  type: string
+                  enum: [INSURANCE, LICENSE, BACKGROUND, AML]
+      responses:
+        '201':
+          description: Compliance check initiated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplianceCheck'
+
+  /ai/tasks:
+    post:
+      tags:
+        - AI
+      summary: Create AI task
+      operationId: createAITask
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - type
+                - input
+              properties:
+                type:
+                  type: string
+                  enum: [DOCUMENT_ANALYSIS, RISK_ASSESSMENT, FRAUD_DETECTION, BLUEPRINT_PARSING]
+                input:
+                  type: object
+                projectId:
+                  type: string
+      responses:
+        '201':
+          description: AI task created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AITask'
+
+  /ai/tasks/{taskId}:
+    get:
+      tags:
+        - AI
+      summary: Get AI task status
+      operationId: getAITask
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Task status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AITask'
+
+  /gov/rfps:
+    get:
+      tags:
+        - Government
+      summary: Search government RFPs
+      operationId: searchRFPs
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: agency
+          in: query
+          schema:
+            type: string
+        - name: budgetMin
+          in: query
+          schema:
+            type: number
+        - name: budgetMax
+          in: query
+          schema:
+            type: number
+        - name: category
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of RFPs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RFP'
+
+  /gov/bids/submit:
+    post:
+      tags:
+        - Government
+      summary: Submit government RFP bid
+      operationId: submitGovernmentBid
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - rfpId
+                - amount
+              properties:
+                rfpId:
+                  type: string
+                amount:
+                  type: number
+                  format: double
+                proposal:
+                  type: string
+                certifications:
+                  type: array
+                  items:
+                    type: string
+                references:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      contactName:
+                        type: string
+                      company:
+                        type: string
+                      phone:
+                        type: string
+      responses:
+        '201':
+          description: Bid submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GovernmentBid'
+
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [GC, SUBCONTRACTOR, WORKER, GOVERNMENT, SUPPLIER]
+        companyName:
+          type: string
+        kycTier:
+          type: string
+          enum: [TIER_1, TIER_2, TIER_3]
+        kycStatus:
+          type: string
+          enum: [PENDING, APPROVED, REJECTED]
+        profile:
+          type: object
+          properties:
+            phone:
+              type: string
+            bio:
+              type: string
+            avatar:
+              type: string
+              format: uri
+            address:
+              $ref: '#/components/schemas/Address'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    AuthResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+          description: JWT access token (expires in 7 days)
+        refreshToken:
+          type: string
+          description: Refresh token (expires in 30 days)
+        user:
+          $ref: '#/components/schemas/User'
+
+    Address:
+      type: object
+      properties:
+        street:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        zipCode:
+          type: string
+        country:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+
+    Project:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [ACTIVE, COMPLETED, PAUSED, ARCHIVED]
+        budget:
+          type: number
+          format: double
+        spent:
+          type: number
+          format: double
+        location:
+          $ref: '#/components/schemas/Address'
+        timeline:
+          type: object
+          properties:
+            startDate:
+              type: string
+              format: date
+            endDate:
+              type: string
+              format: date
+            progressPercent:
+              type: number
+        scope:
+          type: array
+          items:
+            type: string
+        gc:
+          type: object
+          properties:
+            id:
+              type: string
+            companyName:
+              type: string
+        milestones:
+          type: array
+          items:
+            $ref: '#/components/schemas/Milestone'
+        createdAt:
+          type: string
+          format: date-time
+
+    Milestone:
+      type: object
+      properties:
+        id:
+          type: string
+        projectId:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [PENDING, IN_PROGRESS, COMPLETED, APPROVED, REJECTED]
+        amount:
+          type: number
+          format: double
+        dueDate:
+          type: string
+          format: date
+        deliverables:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    Bid:
+      type: object
+      properties:
+        id:
+          type: string
+        projectId:
+          type: string
+        bidder:
+          type: object
+          properties:
+            id:
+              type: string
+            companyName:
+              type: string
+            rating:
+              type: number
+        amount:
+          type: number
+          format: double
+        status:
+          type: string
+          enum: [SUBMITTED, ACCEPTED, REJECTED, AWARDED]
+        timeline:
+          type: object
+          properties:
+            startDate:
+              type: string
+              format: date
+            completionDate:
+              type: string
+              format: date
+        proposal:
+          type: string
+        aiScore:
+          type: number
+          description: AI-generated bid quality score 0-100
+        createdAt:
+          type: string
+          format: date-time
+
+    Payment:
+      type: object
+      properties:
+        id:
+          type: string
+        projectId:
+          type: string
+        milestoneId:
+          type: string
+        senderId:
+          type: string
+        recipientId:
+          type: string
+        amount:
+          type: number
+          format: double
+        status:
+          type: string
+          enum: [PENDING, APPROVED, PROCESSING, COMPLETED, FAILED, CANCELLED]
+        method:
+          type: string
+          enum: [ACH, CARD, INTERNAL_LEDGER, USDC, WIRE]
+        externalTransactionId:
+          type: string
+        verificationStatus:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+
+    Wallet:
+      type: object
+      properties:
+        userId:
+          type: string
+        usdBalance:
+          type: number
+          format: double
+        usdcBalance:
+          type: number
+          format: double
+        platformCredits:
+          type: number
+          format: double
+        kycTierLimit:
+          type: number
+          format: double
+        monthlyFeelingLimit:
+          type: number
+          format: double
+        monthlySettledAmount:
+          type: number
+          format: double
+        pendingPayments:
+          type: number
+          format: double
+        lastUpdated:
+          type: string
+          format: date-time
+
+    Document:
+      type: object
+      properties:
+        id:
+          type: string
+        fileName:
+          type: string
+        type:
+          type: string
+          enum: [CONTRACT, LIEN_WAIVER, INSURANCE, LICENSE, BLUEPRINT, PERMIT, RFI]
+        url:
+          type: string
+          format: uri
+        status:
+          type: string
+          enum: [UPLOADED, PROCESSING, VERIFIED, FAILED]
+        extractedData:
+          type: object
+        aiVerified:
+          type: boolean
+        uploadedAt:
+          type: string
+          format: date-time
+
+    ComplianceCheck:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        checkType:
+          type: string
+          enum: [INSURANCE, LICENSE, BACKGROUND, AML]
+        status:
+          type: string
+          enum: [PENDING, APPROVED, REJECTED]
+        result:
+          type: object
+        createdAt:
+          type: string
+          format: date-time
+
+    AITask:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [DOCUMENT_ANALYSIS, RISK_ASSESSMENT, FRAUD_DETECTION, BLUEPRINT_PARSING]
+        status:
+          type: string
+          enum: [QUEUED, PROCESSING, COMPLETED, FAILED]
+        input:
+          type: object
+        output:
+          type: object
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        processingTimeMs:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+
+    RFP:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        agency:
+          type: string
+        description:
+          type: string
+        budget:
+          type: number
+          format: double
+        deadline:
+          type: string
+          format: date-time
+        category:
+          type: string
+        requirements:
+          type: array
+          items:
+            type: string
+        contractType:
+          type: string
+        duration:
+          type: string
+        setAside:
+          type: string
+        publishedAt:
+          type: string
+          format: date-time
+
+    GovernmentBid:
+      type: object
+      properties:
+        id:
+          type: string
+        rfpId:
+          type: string
+        bidderId:
+          type: string
+        amount:
+          type: number
+          format: double
+        status:
+          type: string
+          enum: [SUBMITTED, UNDER_REVIEW, AWARDED, REJECTED]
+        proposal:
+          type: string
+        certifications:
+          type: array
+          items:
+            type: string
+        submittedAt:
+          type: string
+          format: date-time
+        awardDate:
+          type: string
+          format: date-time
+
+    WorkerProfile:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        skills:
+          type: array
+          items:
+            type: string
+        rating:
+          type: number
+          minimum: 0
+          maximum: 5
+        reviewCount:
+          type: integer
+        onTimeRate:
+          type: number
+        hourlyRate:
+          type: number
+          format: double
+        location:
+          $ref: '#/components/schemas/Address'
+        certifications:
+          type: array
+          items:
+            type: string
+        available:
+          type: boolean
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token in Authorization header
+
+  responses:
+    UnauthorizedError:
+      description: Authentication information is missing or invalid
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+              message:
+                type: string
+
+    NotFoundError:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+              message:
+                type: string
+
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+              details:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    field:
+                      type: string
+                    message:
+                      type: string

@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BuildBrainOS - Preview</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+        nav a {
+            color: white;
+            margin: 0 20px;
+            text-decoration: none;
+            font-size: 14px;
+            opacity: 0.9;
+            transition: opacity 0.3s;
+        }
+        nav a:hover {
+            opacity: 1;
+        }
+        .btn-primary {
+            background: white;
+            color: #667eea;
+            padding: 10px 20px;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+        }
+        .hero {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 80px 0;
+            text-align: center;
+        }
+        .hero h1 {
+            font-size: 56px;
+            margin-bottom: 20px;
+            font-weight: 800;
+        }
+        .hero p {
+            font-size: 24px;
+            margin-bottom: 30px;
+            opacity: 0.95;
+        }
+        .hero2 p {
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+        .cta-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .btn {
+            padding: 15px 40px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        .btn-main {
+            background: white;
+            color: #667eea;
+        }
+        .btn-main:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .btn-secondary {
+            background: transparent;
+            color: white;
+            border: 2px solid white;
+        }
+        .btn-secondary:hover {
+            background: white;
+            color: #667eea;
+        }
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            padding: 60px 0;
+        }
+        .feature-card {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+        .feature-card:hover {
+            transform: translateY(-10px);
+        }
+        .feature-icon {
+            font-size: 40px;
+            margin-bottom: 15px;
+        }
+        .feature-card h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 40px 0;
+        }
+        .metric {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 10px;
+            text-align: center;
+            border-left: 4px solid #667eea;
+        }
+        .metric-number {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .metric-label {
+            color: #666;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        .section {
+            padding: 60px 0;
+        }
+        .section h2 {
+            text-align: center;
+            font-size: 40px;
+            margin-bottom: 40px;
+            color: #333;
+        }
+        footer {
+            background: #222;
+            color: white;
+            padding: 40px 0;
+            text-align: center;
+            margin-top: 60px;
+        }
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            align-items: center;
+        }
+        @media (max-width: 768px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+            .hero h1 {
+                font-size: 36px;
+            }
+            .hero p {
+                font-size: 18px;
+            }
+            nav {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">⚡ BuildBrainOS</div>
+                <nav>
+                    <a href="#features">Features</a>
+                    <a href="#metrics">Market Size</a>
+                    <a href="#roadmap">Roadmap</a>
+                    <a href="#pricing">Pricing</a>
+                </nav>
+                <button class="btn-primary">Get Started</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <div class="hero">
+        <div class="container">
+            <h1>The AWS of Construction</h1>
+            <p>The Operating System for the Real Economy</p>
+            <p style="font-size: 16px; margin-bottom: 40px; opacity: 0.9;">
+                Construction SaaS + Embedded Finance + Skilled Trades Marketplace + Government Procurement AI<br>
+                $4.2T Market • Zero Competitors • Pure Software
+            </p>
+            <div class="cta-buttons">
+                <button class="btn btn-main">Launch Dashboard</button>
+                <button class="btn btn-secondary">Watch Demo</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Features Section -->
+    <div class="container section" id="features">
+        <h2>Core Capabilities</h2>
+        <div class="features">
+            <div class="feature-card">
+                <div class="feature-icon">💰</div>
+                <h3>BuildBrain Pay</h3>
+                <p>Instant milestone-based payments. Replace 90-day cycles with same-day settlement. Automated lien waivers.</p>
+                <p style="margin-top: 15px; font-size: 14px; color: #667eea; font-weight: bold;">Revenue: 1.5-3% per transaction</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">👷</div>
+                <h3>BuildBrain Labor</h3>
+                <p>Uber for skilled trades. Vetted workers + instant payouts + geofenced tracking + AI crew matching.</p>
+                <p style="margin-top: 15px; font-size: 14px; color: #667eea; font-weight: bold;">Revenue: 10-15% commission</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🏢</div>
+                <h3>BuildBrain Bid</h3>
+                <p>Centralized RFP marketplace. AI proposal writing. Subcontractor matchmaking. Compliance automation.</p>
+                <p style="margin-top: 15px; font-size: 14px; color: #667eea; font-weight: bold;">Revenue: $500-$2K per proposal</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🏛️</div>
+                <h3>BuildBrain Gov</h3>
+                <p>Replace SAM.gov. Scrapes RFPs. AI analyzes requirements. Auto-generates proposals. Tracks deadlines.</p>
+                <p style="margin-top: 15px; font-size: 14px; color: #667eea; font-weight: bold;">Revenue: $299/mo + 5% success fee</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📋</div>
+                <h3>BuildBrain Permit</h3>
+                <p>AI zoning & compliance checker. Reads PDFs/CAD. Flags violations. Auto-fills city forms. 6-month faster approvals.</p>
+                <p style="margin-top: 15px; font-size: 14px; color: #667eea; font-weight: bold;">Revenue: $25K-$150K per project</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🤖</div>
+                <h3>BuildBrain AI</h3>
+                <p>Autonomous agent swarm. Compliance Agent. Fraud Detector. Risk Scorer. Change Order Predictor. Blueprint Analyzer.</p>
+                <p style="margin-top: 15px; font-size: 14px; color: #667eea; font-weight: bold;">24/7 autonomous workers</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Market Size Section -->
+    <div style="background: #f8f9fa;">
+        <div class="container section" id="metrics">
+            <h2>$3.6 Trillion Market Opportunity</h2>
+            <div class="metrics">
+                <div class="metric">
+                    <div class="metric-number">$1.4T</div>
+                    <div class="metric-label">Construction Progress Payments<br><span style="font-size: 12px;">(90-day cycle problem)</span></div>
+                </div>
+                <div class="metric">
+                    <div class="metric-number">$200B</div>
+                    <div class="metric-label">Skilled Trades Marketplace<br><span style="font-size: 12px;">(Fragmented, no payments)</span></div>
+                </div>
+                <div class="metric">
+                    <div class="metric-number">$2T</div>
+                    <div class="metric-label">Construction Bidding<br><span style="font-size: 12px;">(Still email + PDFs)</span></div>
+                </div>
+                <div class="metric">
+                    <div class="metric-number">$600B</div>
+                    <div class="metric-label">Gov Procurement<br><span style="font-size: 12px;">(SAM.gov is archaic)</span></div>
+                </div>
+                <div class="metric">
+                    <div class="metric-number">$4.2T</div>
+                    <div class="metric-label">Embedded Finance<br><span style="font-size: 12px;">(Banks reject these customers)</span></div>
+                </div>
+                <div class="metric">
+                    <div class="metric-number">$13T</div>
+                    <div class="metric-label">Global Procurement<br><span style="font-size: 12px;">(International expansion)</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Revenue Model -->
+    <div class="container section">
+        <h2>Revenue Streams (Multi-Layer Toll Booth)</h2>
+        <div style="background: white; padding: 40px; border-radius: 10px; border-left: 4px solid #667eea;">
+            <div class="grid-2">
+                <div>
+                    <h3 style="color: #667eea; margin-bottom: 20px;">Year 1</h3>
+                    <p><strong>$2M ARR</strong></p>
+                    <p style="font-size: 14px; color: #666; margin-top: 10px;">10 GCs<br>500 workers<br>Disaster restoration focus</p>
+                </div>
+                <div>
+                    <h3 style="color: #667eea; margin-bottom: 20px;">Year 5</h3>
+                    <p><strong>$25.2B ARR</strong></p>
+                    <p style="font-size: 14px; color: #666; margin-top: 10px;">1000+ GCs<br>50K+ workers<br>National coverage + fintech</p>
+                </div>
+            </div>
+            <div style="margin-top: 30px; padding-top: 30px; border-top: 1px solid #eee;">
+                <h4 style="color: #667eea; margin-bottom: 15px;">Revenue Mechanisms:</h4>
+                <ul style="list-style: none;">
+                    <li style="padding: 8px 0;">💳 SaaS Subscription: $299-$999/mo (80% margin)</li>
+                    <li style="padding: 8px 0;">💰 Payment Processing: 2.9% + 30¢ (90% margin)</li>
+                    <li style="padding: 8px 0;">🔒 Escrow Fees: 0.5-1.5% (90% margin)</li>
+                    <li style="padding: 8px 0;">⚡ Instant Payout: 1.8% (90% margin)</li>
+                    <li style="padding: 8px 0;">📊 Float Income: Interest on omnibus accounts (100% margin)</li>
+                    <li style="padding: 8px 0;">👥 Labor Commission: 10-15% (90% margin)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- How It Works -->
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 60px 0;">
+        <div class="container">
+            <h2 style="color: white; margin-bottom: 40px;">The Toll Booth Strategy</h2>
+            <div class="features">
+                <div style="background: rgba(255,255,255,0.1); padding: 25px; border-radius: 10px; backdrop-filter: blur(10px);">
+                    <div style="font-size: 32px; margin-bottom: 15px;">1️⃣</div>
+                    <h3>SaaS Layer</h3>
+                    <p>We position as "construction software." Charge $299-$999/mo for project management + compliance.</p>
+                </div>
+                <div style="background: rgba(255,255,255,0.1); padding: 25px; border-radius: 10px; backdrop-filter: blur(10px);">
+                    <div style="font-size: 32px; margin-bottom: 15px;">2️⃣</div>
+                    <h3>Payment Layer</h3>
+                    <p>Once they use us for payments, we take 2.9% + 30¢ via PayFac partners. We never touch the money (no MTL license).</p>
+                </div>
+                <div style="background: rgba(255,255,255,0.1); padding: 25px; border-radius: 10px; backdrop-filter: blur(10px);">
+                    <div style="font-size: 32px; margin-bottom: 15px;">3️⃣</div>
+                    <h3>Finance Layer</h3>
+                    <p>Hold escrow + earn float interest. Offer material credit lines at 8-18% APR. Capture 1-6% of $3.6T cash river.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Competitive Advantage -->
+    <div class="container section">
+        <h2>Why We Win</h2>
+        <div class="grid-2">
+            <div>
+                <h3 style="color: #667eea; margin-bottom: 15px;">🎯 Regulatory Arbitrage</h3>
+                <p>Construction is "boring" to Silicon Valley. Zero competition. Banks avoid this industry. We partner with PayFac (Stripe, Dwolla) instead of getting MTL license.</p>
+            </div>
+            <div>
+                <h3 style="color: #667eea; margin-bottom: 15px;">🔐 Switching Cost</h3>
+                <p>Once GCs pay via us → handle compliance → manage workers, switching costs explode. We own their operational DNA.</p>
+            </div>
+            <div>
+                <h3 style="color: #667eea; margin-bottom: 15px;">📊 Data Moat</h3>
+                <p>Millions of lien waivers. Years of labor history. Permit approval datasets. Eventually = predictive risk engine. Sell insights to banks + insurers.</p>
+            </div>
+            <div>
+                <h3 style="color: #667eea; margin-bottom: 15px;">💪 Vertical Integration</h3>
+                <p>Not just marketplace. Also payments + financing + compliance. Control entire value chain. Competitors are passive tools.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 10-Day MVP -->
+    <div style="background: #f8f9fa;">
+        <div class="container section">
+            <h2>10-Day MVP Sprint To Production</h2>
+            <div style="background: white; padding: 30px; border-radius: 10px; border-left: 4px solid #667eea;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+                    <div>
+                        <h4 style="color: #667eea;">Days 1-2: Infrastructure</h4>
+                        <p style="font-size: 13px; margin-top: 10px;">AWS setup • Docker • PostgreSQL • Redis • GitHub Actions CI/CD</p>
+                    </div>
+                    <div>
+                        <h4 style="color: #667eea;">Days 3-4: Core Backend</h4>
+                        <p style="font-size: 13px; margin-top: 10px;">Auth service • User service • Payment ledger • Prisma migrations</p>
+                    </div>
+                    <div>
+                        <h4 style="color: #667eea;">Days 5-6: Frontend</h4>
+                        <p style="font-size: 13px; margin-top: 10px;">Next.js dashboard • React Native mobile • Auth flow • UI</p>
+                    </div>
+                    <div>
+                        <h4 style="color: #667eea;">Days 7-8: AI + Marketplace</h4>
+                        <p style="font-size: 13px; margin-top: 10px;">Document upload • OCR • Job marketplace CRUD • Basic matching</p>
+                    </div>
+                    <div>
+                        <h4 style="color: #667eea;">Days 9-10: Testing + Deploy</h4>
+                        <p style="font-size: 13px; margin-top: 10px;">E2E tests • Load testing • Docker images • Deploy to staging</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cost Breakdown -->
+    <div class="container section">
+        <h2>Bootstrap Budget (Year 1)</h2>
+        <div style="background: white; padding: 30px; border-radius: 10px;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <tr style="border-bottom: 1px solid #eee;">
+                    <td style="padding: 15px;"><strong>Development</strong></td>
+                    <td style="padding: 15px; text-align: right;"><strong>$135K</strong></td>
+                </tr>
+                <tr style="border-bottom: 1px solid #eee;">
+                    <td style="padding: 15px;"><strong>Infrastructure</strong></td>
+                    <td style="padding: 15px; text-align: right;"><strong>$8.5K</strong></td>
+                </tr>
+                <tr style="border-bottom: 1px solid #eee;">
+                    <td style="padding: 15px;"><strong>Legal & Compliance</strong></td>
+                    <td style="padding: 15px; text-align: right;"><strong>$13.2K</strong></td>
+                </tr>
+                <tr style="border-bottom: 1px solid #eee;">
+                    <td style="padding: 15px;"><strong>Integrations</strong></td>
+                    <td style="padding: 15px; text-align: right;"><strong>$150K</strong></td>
+                </tr>
+                <tr style="border-bottom: 1px solid #eee;">
+                    <td style="padding: 15px;"><strong>Marketing</strong></td>
+                    <td style="padding: 15px; text-align: right;"><strong>$72K</strong></td>
+                </tr>
+                <tr style="font-weight: bold; color: white; background: #667eea;">
+                    <td style="padding: 15px;">TOTAL MVP LAUNCH</td>
+                    <td style="padding: 15px; text-align: right;">~$416K</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <p style="margin-bottom: 20px;">2026 © BuildBrainOS - The Operating System for the Real Economy</p>
+            <p style="font-size: 12px; opacity: 0.7;">Tokenomics-free. Pure software. Pure cash flow. Pure domination.</p>
+        </div>
+    </footer>
+</body>
+</html>

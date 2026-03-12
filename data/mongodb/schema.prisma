@@ -1,0 +1,1045 @@
+// This is the Prisma schema for BuildNexus
+// Supports: Users, Projects, Payments, Workers, Marketplace, Compliance
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ============= CORE USERS =============
+enum UserType {
+  GC              // General Contractor
+  CONTRACTOR      // Subcontractor
+  WORKER          // Skilled worker / gig worker
+  GOVERNMENT      // Government agency
+  DEVELOPER       // Real estate developer
+  SUPPLIER        // Material supplier
+  VENDOR          // Service vendor
+  ADMIN           // Platform admin
+}
+
+enum KYCStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  DELETED
+}
+
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  password        String    // bcrypt hash
+  firstName       String?
+  lastName        String?
+  userType        UserType
+  status          UserStatus @default(ACTIVE)
+  
+  // KYC/Compliance
+  kyc_status      KYCStatus @default(PENDING)
+  kyc_data        Json?
+  kyc_verified_at DateTime?
+  aml_checked_at  DateTime?
+  
+  // Relationships
+  gc_profile              ContractorProfile?
+  worker_profile          WorkerProfile?
+  government_profile      GovernmentProfile?
+  developer_profile       DeveloperProfile?
+  
+  // Projects
+  projects_created        Project[] @relation("ProjectGC")
+  projects_supervised     Project[] @relation("ProjectSupervisor")
+  
+  // Marketplace
+  job_postings            JobPosting[] @relation("JobPoster")
+  job_applications        JobApplication[]
+  
+  // Payments
+  payment_accounts        PaymentAccount[]
+  transactions_payer      Transaction[] @relation("Payer")
+  transactions_payee      Transaction[] @relation("Payee")
+  
+  // Notifications
+  notifications           Notification[]
+  
+  // Audit
+  created_at              DateTime  @default(now())
+  updated_at              DateTime  @updatedAt
+  deleted_at              DateTime?
+  
+  @@index([email])
+  @@index([userType])
+  @@index([kyc_status])
+}
+
+// ============= CONTRACTOR PROFILE =============
+model ContractorProfile {
+  id              String    @id @default(cuid())
+  user_id         String    @unique
+  user            User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  
+  company_name    String?
+  business_type   String?   // LLC, Solo, Corp, Partnership
+  ein             String?   @unique // Tax ID
+  
+  // Banking
+  stripe_account_id String?
+  unit_account_id   String?
+  
+  // Licensing
+  license_number  String?
+  license_state   String?
+  license_expiry  DateTime?
+  license_verified Boolean @default(false)
+  
+  // Insurance
+  general_liability_policy_id String?
+  general_liability_expiry    DateTime?
+  workers_comp_policy_id      String?
+  workers_comp_expiry         DateTime?
+  
+  // Financials (optional)
+  annual_revenue  Float?
+  employees       Int?      @default(1)
+  bonded          Boolean?  @default(false)
+  
+  // Address
+  address_line1   String?
+  address_line2   String?
+  city            String?
+  state           String?
+  zip_code        String?
+  
+  // Ratings
+  rating          Float?    @default(0) // 0-5
+  total_reviews   Int       @default(0)
+  
+  // Stats
+  total_projects  Int       @default(0)
+  completed_projects Int    @default(0)
+  on_time_payment_rate Float? @default(0) // Percentage
+  
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+  
+  @@index([user_id])
+  @@index([stripe_account_id])
+}
+
+// ============= WORKER PROFILE =============
+model WorkerProfile {
+  id              String    @id @default(cuid())
+  user_id         String    @unique
+  user            User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  
+  // Trade info
+  primary_trade   String    // electrician, plumber, hvac, etc.
+  secondary_trades String[]  @default([]) // JSON array of trades
+  experience_years Int?
+  certifications  String[]  @default([])
+  
+  // Licensing
+  license_number  String?
+  license_state   String?
+  license_expiry  DateTime?
+  license_verified Boolean @default(false)
+  
+  // Rate
+  hourly_rate     Float?    // Base rate for jobs
+  is_available    Boolean   @default(true)
+  
+  // Data
+  total_hours     Float     @default(0)
+  total_jobs      Int       @default(0)
+  completed_jobs  Int       @default(0)
+  
+  // Ratings
+  rating          Float?    @default(0) // 0-5
+  total_reviews   Int       @default(0)
+  
+  // Background check
+  background_check_status String @default("PENDING") // PENDING, APPROVED, REJECTED
+  background_check_date   DateTime?
+  
+  // Address
+  address_line1   String?
+  address_line2   String?
+  city            String?
+  state           String?
+  zip_code        String?
+  
+  // Payment preference
+  preferred_payment_method String? // ACH, Card, Internal_Wallet
+  
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+  
+  @@index([user_id])
+  @@index([primary_trade])
+  @@index([license_verified])
+}
+
+// ============= GOVERNMENT PROFILE =============
+model GovernmentProfile {
+  id              String    @id @default(cuid())
+  user_id         String    @unique
+  user            User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  
+  agency_name     String
+  agency_type     String    // Federal, State, Local, Municipal
+  duns_number     String?   // Government contractor ID
+  sam_uei         String?   // SAM.gov unique entity ID
+  
+  // Procurement contact
+  procurement_contact_email String?
+  procurement_phone         String?
+  
+  rfp_postings    RFPPosting[]
+  
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+  
+  @@index([user_id])
+}
+
+// ============= DEVELOPER PROFILE =============
+model DeveloperProfile {
+  id              String    @id @default(cuid())
+  user_id         String    @unique
+  user            User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  
+  company_name    String?
+  num_projects    Int?
+  portfolio_url   String?
+  
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+  
+  @@index([user_id])
+}
+
+// ============= PROJECTS =============
+enum ProjectStatus {
+  DRAFT
+  BIDDING
+  AWARDED
+  IN_PROGRESS
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+enum ProjectType {
+  CONSTRUCTION
+  RENOVATION
+  DISASTER_RESTORATION
+  MAINTENANCE
+  OTHER
+}
+
+model Project {
+  id              String    @id @default(cuid())
+  
+  // Ownership
+  gc_id           String
+  gc              User      @relation("ProjectGC", fields: [gc_id], references: [id], onDelete: Cascade)
+  supervisor_id   String?
+  supervisor      User?     @relation("ProjectSupervisor", fields: [supervisor_id], references: [id])
+  
+  // Basic info
+  name            String
+  description     String?
+  project_type    ProjectType
+  status          ProjectStatus @default(DRAFT)
+  
+  // Location
+  address_line1   String
+  address_line2   String?
+  city            String
+  state           String
+  zip_code        String
+  latitude        Float?
+  longitude       Float?
+  
+  // Dates
+  start_date      DateTime?
+  end_date        DateTime?
+  estimated_completion DateTime?
+  
+  // Financials
+  budget          Float?
+  estimated_cost  Float?
+  actual_cost     Float?    @default(0)
+  
+  // Documents
+  blueprints      Document[]
+  contracts       Document[]
+  specifications  Document[]
+  
+  // Milestones
+  milestones      Milestone[]
+  pay_apps        PayApp[]
+  
+  // Tasks/RFIs
+  rfis            RFI[]
+  change_orders   ChangeOrder[]
+  
+  // Compliance
+  permits         Permit[]
+  insurance_requirements InsuranceRequirement[]
+  lien_waivers    LienWaiver[]
+  
+  // Marketplace
+  job_postings    JobPosting[]
+  
+  // Payments
+  transactions    Transaction[]
+  escrow          Escrow?
+  
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+  
+  @@index([gc_id])
+  @@index([status])
+  @@index([state])
+  @@index([created_at])
+}
+
+// ============= MILESTONES =============
+enum MilestoneStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  REJECTED
+}
+
+model Milestone {
+  id              String    @id @default(cuid())
+  project_id      String
+  project         Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  
+  title           String
+  description     String?
+  sequence_number Int
+  
+  status          MilestoneStatus @default(PENDING)
+  
+  // Budget
+  budget_amount   Float
+  actual_amount   Float?
+  
+  // Dates
+  planned_start   DateTime?
+  planned_end     DateTime?
+  actual_start    DateTime?
+  actual_end      DateTime?
+  
+  // Completion Evidence
+  photos          Photo[]
+  documents       Document[]
+  
+  // Lien waiver
+  lien_waiver_id  String?
+  lien_waiver     LienWaiver? @relation(fields: [lien_waiver_id], references: [id])
+  
+  // Payment
+  payment_status  String    @default("PENDING") // PENDING, APPROVED, PAID
+  pay_app_id      String?
+  
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+  
+  @@index([project_id])
+  @@index([status])
+}
+
+// ============= PHOTOS (for milestone verification) =============
+model Photo {
+  id              String    @id @default(cuid())
+  milestone_id    String
+  milestone       Milestone @relation(fields: [milestone_id], references: [id], onDelete: Cascade)
+  
+  s3_url          String
+  s3_key          String
+  timestamp       DateTime
+  geolocation     Json?     // { latitude, longitude, accuracy }
+  
+  verified        Boolean   @default(false)
+  verified_by_ai  Boolean   @default(false)
+  ai_analysis     Json?     // { objects_detected, completion_percentage }
+  
+  created_at      DateTime  @default(now())
+  
+  @@index([milestone_id])
+}
+
+// ============= DOCUMENTS =============
+enum DocumentType {
+  BLUEPRINT
+  CONTRACT
+  SPECIFICATION
+  PERMIT
+  INSURANCE
+  LIEN_WAIVER
+  PAY_APP
+  RFI
+  CHANGE_ORDER
+  OTHER
+}
+
+model Document {
+  id              String    @id @default(cuid())
+  project_id      String
+  project         Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  
+  name            String
+  document_type   DocumentType
+  
+  s3_url          String
+  s3_key          String
+  file_size       Int
+  
+  // Parsing
+  parsed_content  String?   // Full text extraction
+  extracted_data  Json?     // Structured data from AI
+  
+  // Versioning
+  version         Int       @default(1)
+  previous_version_id String?
+  
+  uploaded_by     String?
+  
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+  
+  @@index([project_id])
+  @@index([document_type])
+}
+
+// ============= PAY APPS (Payment Applications) =============
+enum PayAppStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  PAID
+}
+
+model PayApp {
+  id              String    @id @default(cuid())
+  project_id      String
+  project         Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  
+  submitted_by    String    // Contractor ID
+  submitted_date  DateTime  @default(now())
+  
+  status          PayAppStatus @default(DRAFT)
+  
+  // Financial
+  contract_amount Float
+  total_previously_paid Float @default(0)
+  total_claimed   Float
+  retention_rate  Float?    @default(0.05) // 5% default
+  retention_amount Float?
+  net_this_period Float?
+  
+  // Details
+  period_start    DateTime?
+  period_end      DateTime?
+  line_items      LineItem[]
+  
+  // Review
+  reviewed_by     String?
+  review_comments String?
+  
+  // Document
+  s3_key          String?
+  parsed_data     Json?     // Structured extraction
+  
+  // Associated milestone
+  milestone_id    String?
+  
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+  
+  @@index([project_id])
+  @@index([status])
+}
+
+// ============= LINE ITEMS (in pay apps) =============
+model LineItem {
+  id              String    @id @default(cuid())
+  pay_app_id      String
+  pay_app         PayApp    @relation(fields: [pay_app_id], references: [id], onDelete: Cascade)
+  
+  description     String
+  quantity        Float
+  unit            String    // hours, sqft, tons, etc.
+  unit_price      Float
+  total_amount    Float     // qty * unit_price
+  
+  percentage_complete Float? @default(0)
+  
+  @@index([pay_app_id])
+}
+
+// ============= LIEN WAIVERS =============
+enum LienWaiverStatus {
+  GENERATED
+  SENT_FOR_SIGNATURE
+  SIGNED
+  VERIFIED
+  REJECTED
+}
+
+enum LienWaiverType {
+  CONDITIONAL
+  UNCONDITIONAL
+}
+
+model LienWaiver {
+  id              String    @id @default(cuid())
+  project_id      String
+  project         Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  
+  contractor_id   String
+  // contractor_profile ContractorProfile @relation(fields: [contractor_id], references: [user_id])
+  
+  status          LienWaiverStatus @default(GENERATED)
+  waiver_type     LienWaiverType @default(CONDITIONAL)
+  
+  // Amount
+  waived_amount   Float
+  
+  // Legal
+  state           String    // State law governing
+  template_version String?
+  
+  // Signature
+  docusign_envelope_id String?
+  signed_by       String?
+  signed_at       DateTime?
+  
+  // Verification
+  verified_by     String?
+  verified_at     DateTime?
+  
+  // Milestones
+  milestones      Milestone[]
+  
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+  
+  @@index([project_id])
+  @@index([contractor_id])
+  @@index([status])
+}
+
+// ============= RFIs (Request for Information) =============
+model RFI {
+  id              String    @id @default(cuid())
+  project_id      String
+  project         Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  
+  rfi_number      String    @unique
+  
+  issued_by       String    // User ID
+  issued_to       String    // Trade/contractor
+  
+  subject         String
+  description     String
+  
+  status          String    @default("OPEN") // OPEN, ACKNOWLEDGED, RESPONDED, CLOSED
+  
+  documents       Document[]
+  
+  due_date        DateTime?
+  response_date   DateTime?
+  response_content String?
+  
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+  
+  @@index([project_id])
+}
+
+// ============= CHANGE ORDERS =============
+model ChangeOrder {
+  id              String    @id @default(cuid())
+  project_id      String
+  project         Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  
+  co_number       String    @unique
+  
+  title           String
+  description     String
+  
+  cost_impact     Float?
+  schedule_impact String?   // # of days
+  
+  status          String    @default("PENDING") // PENDING, APPROVED, REJECTED, EXECUTED
+  
+  documents       Document[]
+  
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+  
+  @@index([project_id])
+}
+
+// ============= PERMITS =============
+enum PermitStatus {
+  NOT_STARTED
+  SUBMITTED
+  UNDER_REVIEW
+  QUESTIONS_ASKED
+  APPROVED
+  REJECTED
+}
+
+model Permit {
+  id              String    @id @default(cuid())
+  project_id      String
+  project         Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  
+  permit_type     String    // Building, Electrical, Plumbing, etc.
+  permit_number   String?   @unique
+  
+  status          PermitStatus @default(NOT_STARTED)
+  
+  // Dates
+  submitted_date  DateTime?
+  approved_date   DateTime?
+  expiry_date     DateTime?
+  
+  // AI Analysis
+  ai_compliance_check Json?
+  compliance_score Float? // 0-100%
+  required_fixes  String[]
+  
+  // Documents
+  blueprints      Document[]
+  forms           Document[]
+  approvals       Document[]
+  
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+  
+  @@index([project_id])
+  @@index([status])
+}
+
+// ============= INSURANCE REQUIREMENTS =============
+model InsuranceRequirement {
+  id              String    @id @default(cuid())
+  project_id      String
+  project         Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  
+  coverage_type   String    // General Liability, Workers Comp, etc.
+  minimum_limit   Float
+  required_parties String[]  // GC, Subs, etc.
+  
+  created_at      DateTime  @default(now())
+  
+  @@index([project_id])
+}
+
+// ============= PAYMENTS & TRANSACTIONS =============
+enum TransactionStatus {
+  INITIATED
+  AUTHORIZED
+  CAPTURING
+  CAPTURED
+  SETTLED
+  FAILED
+  REFUNDED
+  DISPUTED
+}
+
+enum TransactionType {
+  PAYMENT          // Customer pays
+  PAYOUT           // Contractor paid
+  REFUND
+  ADJUSTMENT
+  FEE
+  INTEREST
+}
+
+model Transaction {
+  id              String    @id @default(cuid())
+  project_id      String
+  project         Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  
+  payer_id        String
+  payer           User      @relation("Payer", fields: [payer_id], references: [id])
+  
+  payee_id        String
+  payee           User      @relation("Payee", fields: [payee_id], references: [id])
+  
+  type            TransactionType
+  status          TransactionStatus @default(INITIATED)
+  
+  // Amount
+  amount          Float
+  currency        String    @default("USD")
+  processing_fee  Float     @default(0)
+  platform_fee    Float     @default(0)
+  net_amount      Float?
+  
+  // Payment method
+  payment_method  String    // stripe, ach, internal_ledger, card
+  stripe_charge_id String?
+  unit_transaction_id String?
+  
+  // Timing
+  scheduled_date  DateTime?
+  captured_date   DateTime?
+  settled_date    DateTime?
+  
+  // Optional fields
+  milestone_id    String?
+  pay_app_id      String?
+  lien_waiver_id  String?
+  
+  metadata        Json?
+  
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+  
+  @@index([project_id])
+  @@index([payer_id])
+  @@index([payee_id])
+  @@index([status])
+  @@index([created_at])
+}
+
+// ============= ESCROW =============
+model Escrow {
+  id              String    @id @default(cuid())
+  project_id      String    @unique
+  project         Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  
+  held_amount     Float     @default(0)
+  held_by         String    // BaaS partner or us
+  
+  // Conditions for release
+  conditions      String[]  // milestone_complete, lien_signed, etc.
+  
+  // Holds
+  holds           Hold[]
+  
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+  
+  @@index([project_id])
+}
+
+model Hold {
+  id              String    @id @default(cuid())
+  escrow_id       String
+  escrow          Escrow    @relation(fields: [escrow_id], references: [id], onDelete: Cascade)
+  
+  amount          Float
+  reason          String    // milestone, lien_pending, dispute, etc.
+  
+  // Release
+  should_release  Boolean   @default(false)
+  release_date    DateTime?
+  
+  created_at      DateTime  @default(now())
+  
+  @@index([escrow_id])
+}
+
+// ============= PAYMENT ACCOUNTS (Users' Wallets) =============
+enum AccountType {
+  BANK_ACCOUNT
+  STRIPE_CONNECT
+  INTERNAL_WALLET
+  STABLECOIN_WALLET
+}
+
+model PaymentAccount {
+  id              String    @id @default(cuid())
+  user_id         String
+  user            User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  
+  account_type    AccountType
+  
+  // Bank account
+  bank_account_number String?
+  bank_routing_number String?
+  bank_name       String?
+  
+  // Stripe account
+  stripe_account_id String?
+  
+  // Internal wallet
+  balance         Float     @default(0)
+  internal_ledger_balance Float @default(0)
+  
+  // Verification
+  verified        Boolean   @default(false)
+  verified_at     DateTime?
+  
+  is_primary      Boolean   @default(false)
+  
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+  
+  @@index([user_id])
+}
+
+// ============= MARKETPLACE (Jobs & Hiring) =============
+enum JobStatus {
+  DRAFT
+  POSTED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  CLOSED
+}
+
+enum JobCategory {
+  ELECTRICIAN
+  PLUMBER
+  HVAC
+  CARPENTER
+  LABORER
+  EQUIPMENT_OPERATOR
+  HEAVY_EQUIPMENT
+  ROOFING
+  CONCRETE
+  STEELWORK
+  DEMOLITION
+  OTHER
+}
+
+enum ApplicationStatus {
+  APPLIED
+  VIEWED
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+  COMPLETED
+}
+
+model JobPosting {
+  id              String    @id @default(cuid())
+  project_id      String
+  project         Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  
+  posted_by       String    // User ID
+  poster          User      @relation("JobPoster", fields: [posted_by], references: [id])
+  
+  title           String
+  description     String
+  category        JobCategory
+  
+  // Job details
+  start_date      DateTime
+  duration_days   Int?
+  hourly_rate     Float?
+  fixed_price     Float?
+  
+  // Capacity
+  positions_open  Int       @default(1)
+  applications    JobApplication[]
+  workers_hired   String[]  @default([])
+  
+  status          JobStatus @default(DRAFT)
+  
+  // Requirements
+  required_licenses String[] @default([])
+  required_insurance String[] @default([])
+  experience_required Int? // Years
+  
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+  
+  @@index([project_id])
+  @@index([posted_by])
+  @@index([category])
+}
+
+model JobApplication {
+  id              String    @id @default(cuid())
+  job_id          String
+  job             JobPosting @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  
+  applicant_id    String
+  applicant       User      @relation(fields: [applicant_id], references: [id], onDelete: Cascade)
+  
+  status          ApplicationStatus @default(APPLIED)
+  
+  cover_letter    String?
+  quote           Float?
+  days_available  Int?
+  
+  applied_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+  
+  @@index([job_id])
+  @@index([applicant_id])
+  @@index([status])
+}
+
+// ============= GOVERNMENT PROCUREMENT =============
+enum RFPStatus {
+  OPEN
+  CLOSING_SOON
+  CLOSED
+  AWARDED
+  CANCELLED
+}
+
+model RFPPosting {
+  id              String    @id @default(cuid())
+  
+  posted_by       String    // Government user ID
+  government      GovernmentProfile @relation(fields: [posted_by], references: [user_id])
+  
+  title           String
+  description     String
+  
+  rfp_url         String?
+  naics_codes     String[]  // Industry classification
+  
+  // Dates
+  published_date  DateTime  @default(now())
+  deadline        DateTime
+  award_date      DateTime?
+  
+  status          RFPStatus @default(OPEN)
+  
+  // Financial
+  estimated_value Float?
+  contract_type   String?   // Lump sum, T&M, Cost+, etc.
+  
+  // Documents
+  attachments     Document[]
+  
+  // Responses
+  proposals       ProposalSubmission[]
+  
+  created_at      DateTime  @default(now())
+  
+  @@index([posted_by])
+  @@index([status])
+  @@index([deadline])
+}
+
+model ProposalSubmission {
+  id              String    @id @default(cuid())
+  rfp_id          String
+  rfp             RFPPosting @relation(fields: [rfp_id], references: [id], onDelete: Cascade)
+  
+  submitted_by    String    // Contractor user ID
+  
+  content         String    // Full proposal text
+  documents       Document[]
+  
+  // AI Analysis
+  compliance_score Float?
+  win_probability Float? // 0-100%
+  
+  status          String    @default("SUBMITTED") // SUBMITTED, UNDER_REVIEW, ACCEPTED, REJECTED
+  
+  submitted_at    DateTime  @default(now())
+  
+  @@index([rfp_id])
+  @@index([submitted_by])
+}
+
+// ============= NOTIFICATIONS =============
+enum NotificationType {
+  PAYMENT_RECEIVED
+  PAYMENT_RELEASED
+  JOB_APPLIED
+  JOB_ACCEPTED
+  MILESTONE_COMPLETED
+  RFI_ISSUED
+  CHANGE_ORDER_SUBMITTED
+  PROJECT_UPDATE
+  COMPLIANCE_ALERT
+}
+
+model Notification {
+  id              String    @id @default(cuid())
+  user_id         String
+  user            User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  
+  type            NotificationType
+  title           String
+  message         String
+  
+  // Link to related entity
+  related_entity  String?
+  related_entity_id String?
+  
+  read            Boolean   @default(false)
+  read_at         DateTime?
+  
+  created_at      DateTime  @default(now())
+  
+  @@index([user_id])
+  @@index([read])
+}
+
+// ============= AUDIT LOG =============
+model AuditLog {
+  id              String    @id @default(cuid())
+  
+  actor_id        String    // Who did the action
+  action          String    // create, update, delete, etc.
+  entity_type     String    // Project, Transaction, etc.
+  entity_id       String    // Which record
+  
+  before_state    Json?     // Previous values
+  after_state     Json?     // New values
+  
+  ip_address      String?
+  user_agent      String?
+  
+  created_at      DateTime  @default(now())
+  
+  @@index([actor_id])
+  @@index([entity_type])
+  @@index([created_at])
+}
+
+// ============= LEDGER (Double-Entry Accounting) =============
+// For financial tracking and float management
+model LedgerEntry {
+  id              String    @id @default(cuid())
+  
+  // Account coding
+  account         String    // e.g., "asset:bank_stripe", "liability:payment_holding"
+  
+  // Amounts
+  debit           Float     @default(0)
+  credit          Float     @default(0)
+  
+  // Link to transaction
+  transaction_id  String?
+  project_id      String?
+  
+  description     String?
+  
+  created_at      DateTime  @default(now())
+  
+  @@index([account])
+  @@index([created_at])
+}

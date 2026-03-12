@@ -1,0 +1,60 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: buildbrain-prod
+data:
+  NODE_ENV: "production"
+  LOG_LEVEL: "info"
+  DATABASE_URL: "postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/buildbrain"
+  REDIS_URL: "redis://redis:6379"
+  JWT_SECRET: "change-me-in-production"
+  JWT_EXPIRY: "7d"
+  API_URL: "https://api.buildbrain.io"
+  FRONTEND_URL: "https://app.buildbrain.io"
+  SERVICE_PORT: "3000"
+  # SendGrid
+  SENDGRID_API_KEY: "change-me-in-production"
+  SENDGRID_FROM_EMAIL: "noreply@buildbrain.io"
+  # Twilio
+  TWILIO_ACCOUNT_SID: "change-me-in-production"
+  TWILIO_AUTH_TOKEN: "change-me-in-production"
+  TWILIO_PHONE_NUMBER: "+1234567890"
+  # Firebase
+  FIREBASE_PROJECT_ID: "buildbrain-prod"
+  FIREBASE_KEYFILE_PATH: "/etc/secrets/firebase-key.json"
+  # AWS
+  AWS_REGION: "us-east-1"
+  AWS_S3_BUCKET: "buildbrain-documents"
+  # SAM.gov
+  SAMGOV_API_KEY: "change-me-in-production"
+  # Stripe
+  STRIPE_PUBLIC_KEY: "pk_live_..."
+  STRIPE_SECRET_KEY: "sk_live_..."
+  # Rate Limiting
+  RATE_LIMIT_WINDOW_MS: "900000"
+  RATE_LIMIT_MAX_REQUESTS: "100"
+  # Cache
+  CACHE_TTL: "3600"
+  CACHE_MAX_SIZE: "1000"
+  # Monitoring
+  ENABLE_METRICS: "true"
+  METRICS_PORT: "9090"
+  SENTRY_DSN: "change-me-in-production"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-secrets
+  namespace: buildbrain-prod
+type: Opaque
+stringData:
+  POSTGRES_PASSWORD: "change-me-in-production"
+  JWT_SECRET: "change-me-in-production"
+  SENDGRID_API_KEY: "change-me-in-production"
+  TWILIO_ACCOUNT_SID: "change-me-in-production"
+  TWILIO_AUTH_TOKEN: "change-me-in-production"
+  STRIPE_SECRET_KEY: "sk_live_change-me-in-production"
+  SAMGOV_API_KEY: "change-me-in-production"
+  AWS_ACCESS_KEY_ID: "change-me-in-production"
+  AWS_SECRET_ACCESS_KEY: "change-me-in-production"
