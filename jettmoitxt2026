@@ -3069,3 +3069,38 @@ SAM.gov	RFP data	API + Scraping
 DocuSign	Digital signatures	Embedded SDK
 
 
+
+
+ how to Push code from To gityhub
+
+Robl Gurre <roblgurre@gmail.com>
+Attachments
+Dec 24, 2025, 4:36 PM
+to me
+
+$ git init
+$  git add .
+$ git commit -m "first commit"
+$ git branch -M main
+$ git remote add origin https://github.com/devgure/buildbrainosdev.git
+$ git push -u origin main
+On Mon, Dec 22, 2025 at 6:35 PM Robl Gurre <roblgurre@gmail.com> wrote:
+
+
+$ git init
+$  git add .
+$ git commit -m "first commit"
+
+$ git branch -M main
+
+$ git remote add origin https://github.com/devgure/buildbrainosdev.git
+
+$ git push -u origin main
+
+
+
+  git config --global user.email "roblgurre@gmail.com"
+  git config --global user.name "Your Name"
+
+  git config --global user.email "roblgurre@gmail.com"
+   git config --global user.name "devgure
