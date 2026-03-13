@@ -6411,9 +6411,1497 @@ admin-service – configuration, reporting, audit.
 
  wire into React/Next components.
 
+.///////////////////   this  is New MOngo Prisma  friday ////////////
+
+// ============= CONFIG =============
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_DATABASE_URL") // For migrations
+}
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearch", "multiSchema", "postgresqlExtensions"]
+  output          = "../../generated/prisma"
+}
+
+// ============= ENUMS =============
+enum UserType {
+  GC              // General Contractor
+  SUBCONTRACTOR   // Subcontractor
+  WORKER          // Skilled worker / gig worker
+  GOVERNMENT      // Government agency
+  DEVELOPER       // Real estate developer
+  SUPPLIER        // Material supplier
+  VENDOR          // Service vendor
+  ADMIN           // Platform admin
+  PLATFORM        // System service account
+}
+
+enum KYCStatus {
+  NOT_STARTED
+  PENDING
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  SUSPENDED
+  EXPIRED
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  DELETED
+  BANNED
+}
+
+enum ProjectStatus {
+  DRAFT
+  BIDDING
+  AWARDED
+  IN_PROGRESS
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+  DISPUTED
+}
+
+enum MilestoneStatus {
+  PENDING
+  IN_PROGRESS
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  COMPLETED
+  DISPUTED
+}
+
+enum PayAppStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  PAID
+  DISPUTED
+}
+
+enum LienWaiverStatus {
+  DRAFT
+  GENERATED
+  SENT_FOR_SIGNATURE
+  SIGNED
+  VERIFIED
+  REJECTED
+  EXPIRED
+}
+
+enum TransactionStatus {
+  INITIATED
+  AUTHORIZED
+  CAPTURING
+  CAPTURED
+  SETTLED
+  FAILED
+  REFUNDED
+  DISPUTED
+  REVERSED
+}
+
+enum TransactionType {
+  PAYMENT          // Customer pays platform
+  PAYOUT           // Platform pays contractor/worker
+  ESCROW_HOLD      // Funds held for milestone
+  ESCROW_RELEASE   // Funds released from escrow
+  RETAINAGE_HOLD   // Retainage withheld
+  RETAINAGE_RELEASE // Retainage released
+  REFUND
+  ADJUSTMENT
+  FEE_PLATFORM     // Platform fee
+  FEE_PROCESSING   // Payment processor fee
+  FEE_UNDERWRITING // Risk assessment fee
+  INTEREST_EARNED  // Float yield
+}
+
+enum JobStatus {
+  DRAFT
+  POSTED
+  APPLICATIONS_OPEN
+  APPLICATIONS_CLOSED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  CLOSED
+}
+
+enum ApplicationStatus {
+  APPLIED
+  VIEWED
+  SHORTLISTED
+  INTERVIEWED
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+  HIRED
+  COMPLETED
+}
+
+enum RFPStatus {
+  DRAFT
+  PUBLISHED
+  OPEN
+  CLOSING_SOON
+  CLOSED
+  UNDER_REVIEW
+  AWARDED
+  CANCELLED
+  PROTESTED
+}
+
+// ============= CORE USER MODELS =============
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  passwordHash    String?   // bcrypt - null for SSO users
+  phone           String?   @unique
+  phoneVerified   Boolean   @default(false)
+  
+  // Identity
+  firstName       String?
+  lastName        String?
+  legalName       String?   // For contracts/KYC
+  userType        UserType
+  status          UserStatus @default(ACTIVE)
+  
+  // KYC/Compliance - Critical for embedded finance
+  kycStatus       KYCStatus @default(NOT_STARTED)
+  kycData         Json?     // Structured KYC response
+  kycVerifiedAt   DateTime?
+  kycExpiresAt    DateTime? // Annual re-verification
+  amlCheckedAt    DateTime?
+  ofacScreenedAt  DateTime?
+  sanctionsList   String[]  @default([])
+  
+  // Tax/1099
+  taxId           String?   @unique // EIN/SSN (encrypted)
+  taxIdType       String?   // EIN, SSN, ITIN
+  w9OnFile        Boolean   @default(false)
+  w9DocumentId    String?
+  
+  // Relationships (polymorphic profiles)
+  gcProfile       ContractorProfile?
+  workerProfile   WorkerProfile?
+  governmentProfile GovernmentProfile?
+  developerProfile DeveloperProfile?
+  supplierProfile SupplierProfile?
+  
+  // Projects
+  projectsCreated Project[]   @relation("ProjectGC")
+  projectsSupervised Project[] @relation("ProjectSupervisor")
+  projectAssignments ProjectAssignment[]
+  
+  // Marketplace
+  jobsPosted      JobPosting[] @relation("JobPoster")
+  jobApplications JobApplication[]
+  
+  // Payments
+  paymentAccounts PaymentAccount[]
+  transactionsSent Transaction[] @relation("Payer")
+  transactionsReceived Transaction[] @relation("Payee")
+  ledgerEntries   LedgerEntry[]
+  
+  // Compliance docs
+  insuranceDocs   InsuranceDocument[]
+  certifications  Certification[]
+  
+  // Notifications & Activity
+  notifications   Notification[]
+  auditLogs       AuditLog[]
+  
+  // Metadata
+  lastLoginAt     DateTime?
+  ipAddress       String?     // Last login IP
+  userAgent       String?     // Last login UA
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime? @map("deleted_at")
+  
+  @@map("users")
+  @@index([email])
+  @@index([phone])
+  @@index([userType])
+  @@index([kycStatus])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ============= CONTRACTOR PROFILE =============
+model ContractorProfile {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Business Identity
+  companyName     String
+  legalName       String?   // DBA vs legal
+  businessType    String    // LLC, S-Corp, C-Corp, Sole Prop, Partnership
+  ein             String?   @unique // Encrypted
+  dunsNumber      String?   // For gov contracts
+  
+  // Contact & Location
+  website         String?
+  phone           String?
+  addressLine1    String
+  addressLine2    String?
+  city            String
+  state           String    // 2-letter code
+  zipCode         String
+  county          String?
+  
+  // Banking/Payments (Stripe Connect + Unit)
+  stripeAccountId String?   @unique
+  stripeOnboardingStatus String? // requirements_due, pending, complete
+  unitAccountId   String?   @unique
+  unitOnboardingStatus String?
+  
+  // Licensing (state-specific)
+  licenses        License[]
+  primaryLicenseId String?
+  
+  // Insurance (required for most jobs)
+  insurancePolicies InsurancePolicy[]
+  
+  // Financials (for underwriting)
+  annualRevenue   Float?    // In USD
+  yearsInBusiness Int?
+  employeeCount   Int?      @default(1)
+  bonded          Boolean   @default(false)
+  bondAmount      Float?
+  
+  // Performance Metrics (for marketplace ranking)
+  rating          Float     @default(0) // 0-5, weighted
+  totalReviews    Int       @default(0)
+  totalProjects   Int       @default(0)
+  completedProjects Int     @default(0)
+  onTimeCompletionRate Float @default(0) // Percentage
+  onTimePaymentRate Float  @default(0)   // For subs/workers
+  disputeRate     Float    @default(0)
+  
+  // Specializations
+  primaryTrade    String?   // e.g., "electrical", "plumbing"
+  secondaryTrades String[]  @default([])
+  naicsCodes      String[]  @default([]) // For gov bidding
+  serviceAreas    String[]  // State/county codes
+  
+  // Preferences
+  preferredPaymentMethod String? // ACH, Card, Internal
+  autoAcceptJobs  Boolean  @default(false)
+  minJobValue     Float?
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@map("contractor_profiles")
+  @@index([userId])
+  @@index([stripeAccountId])
+  @@index([unitAccountId])
+  @@index([primaryTrade])
+  @@index([state])
+}
+
+model License {
+  id              String    @id @default(cuid())
+  contractorId    String
+  contractor      ContractorProfile @relation(fields: [contractorId], references: [id], onDelete: Cascade)
+  
+  licenseNumber   String
+  licenseType     String    // e.g., "Electrical Contractor", "General Building"
+  issuingState    String    // 2-letter code
+  issuingAuthority String?  // e.g., "CA Contractors State License Board"
+  
+  issueDate       DateTime
+  expiryDate      DateTime
+  status          String    @default("ACTIVE") // ACTIVE, EXPIRED, SUSPENDED, REVOKED
+  
+  verified        Boolean   @default(false)
+  verifiedAt      DateTime?
+  verificationMethod String? // MANUAL, API, DOCUMENT
+  
+  documentUrl     String?   // S3 key to license PDF
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@map("contractor_licenses")
+  @@index([contractorId])
+  @@index([licenseNumber, issuingState], unique: true)
+  @@index([expiryDate])
+}
+
+model InsurancePolicy {
+  id              String    @id @default(cuid())
+  contractorId    String
+  contractor      ContractorProfile @relation(fields: [contractorId], references: [id], onDelete: Cascade)
+  
+  policyType      String    // GENERAL_LIABILITY, WORKERS_COMP, AUTO, UMBRELLA
+  provider        String
+  policyNumber    String
+  certificateUrl  String    // S3 key to COI
+  
+  coverageAmount  Float     // In USD
+  deductible      Float?
+  
+  effectiveDate   DateTime
+  expirationDate  DateTime
+  status          String    @default("ACTIVE")
+  
+  verified        Boolean   @default(false)
+  verifiedAt      DateTime?
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@map("contractor_insurance")
+  @@index([contractorId])
+  @@index([policyNumber, provider], unique: true)
+  @@index([expirationDate])
+}
+
+// ============= WORKER PROFILE =============
+model WorkerProfile {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Trade & Skills
+  primaryTrade    String    // e.g., "electrician", "plumber"
+  secondaryTrades String[]  @default([])
+  skills          String[]  @default([]) // Specific skills: "conduit bending", "pipe threading"
+  experienceYears Int?
+  
+  // Licensing (if required for trade)
+  licenseNumber   String?
+  licenseState    String?
+  licenseExpiry   DateTime?
+  licenseVerified Boolean   @default(false)
+  
+  // Certifications
+  certifications  WorkerCertification[]
+  
+  // Rates & Availability
+  hourlyRate      Float?    // Base rate
+  overtimeRate    Float?    // Default 1.5x
+  travelRate      Float?    // Per mile or flat
+  isAvailable     Boolean   @default(true)
+  availabilitySchedule Json? // { mon: {start, end}, tue: ... }
+  
+  // Location & Travel
+  homeBase        String    // City, State
+  serviceRadius   Int?      // Miles willing to travel
+  willingToRelocate Boolean @default(false)
+  
+  // Performance
+  totalHours      Float     @default(0)
+  totalJobs       Int       @default(0)
+  completedJobs   Int       @default(0)
+  rating          Float     @default(0)
+  totalReviews    Int       @default(0)
+  onTimeRate      Float     @default(0)
+  noShowRate      Float     @default(0)
+  
+  // Background & Safety
+  backgroundCheckStatus String @default("NOT_STARTED")
+  backgroundCheckDate DateTime?
+  backgroundCheckProvider String? // Checkr, GoodHire
+  safetyTraining    String[] @default([]) // OSHA 10, OSHA 30, etc.
+  
+  // Payment Preferences
+  preferredPaymentMethod String? // ACH, Card, Internal_Wallet, Crypto
+  instantPayEnabled Boolean @default(false) // For completed milestones
+  
+  // Address (for tax purposes)
+  addressLine1    String?
+  city            String?
+  state           String?
+  zipCode         String?
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@map("worker_profiles")
+  @@index([userId])
+  @@index([primaryTrade])
+  @@index([licenseVerified])
+  @@index([homeBase])
+  @@index([isAvailable])
+}
+
+model WorkerCertification {
+  id              String    @id @default(cuid())
+  workerId        String
+  worker          WorkerProfile @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  
+  name            String    // e.g., "OSHA 30-Hour Construction"
+  issuer          String    // e.g., "OSHA", "NCCER"
+  credentialId    String?
+  
+  issueDate       DateTime?
+  expirationDate  DateTime?
+  
+  documentUrl     String?   // S3 key to certificate
+  verified        Boolean   @default(false)
+  
+  createdAt       DateTime  @default(now())
+  
+  @@map("worker_certifications")
+  @@index([workerId])
+}
+
+// ============= GOVERNMENT PROFILE =============
+model GovernmentProfile {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  agencyName      String
+  agencyType      String    // FEDERAL, STATE, LOCAL, MUNICIPAL, SCHOOL_DISTRICT
+  agencyCode      String?   // e.g., "DOD", "GSA", "VA"
+  
+  // SAM.gov Integration
+  samUei          String?   @unique // Unique Entity ID
+  samCageCode     String?   // Commercial and Government Entity code
+  samRegistrationExpiry DateTime?
+  samVerified     Boolean   @default(false)
+  
+  // Procurement
+  procurementOffice String?
+  procurementContactEmail String?
+  procurementPhone String?
+  
+  // Contracting Authority
+  contractingOfficerName String?
+  contractingOfficerEmail String?
+  warrantLevel      String? // Level of contracting authority
+  
+  // Preferences
+  preferredContractTypes String[] @default([]) // FF, T&M, CPFF, etc.
+  setAsidePreferences String[] @default([]) // SDVOSB, WOSB, HUBZone, 8(a)
+  
+  // Stats
+  totalContracts  Int       @default(0)
+  totalSpend      Float     @default(0)
+  activeRfps      Int       @default(0)
+  
+  rfpPostings     RFPPosting[]
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@map("government_profiles")
+  @@index([userId])
+  @@index([samUei])
+  @@index([agencyType])
+}
+
+// ============= PROJECTS & DELIVERY =============
+model Project {
+  id              String    @id @default(cuid())
+  
+  // Ownership & Team
+  gcId            String
+  gc              User      @relation("ProjectGC", fields: [gcId], references: [id], onDelete: Cascade)
+  supervisorId    String?
+  supervisor      User?     @relation("ProjectSupervisor", fields: [supervisorId], references: [id])
+  
+  // Basic Info
+  name            String
+  description     String?   @db.Text
+  projectType     String    // NEW_CONSTRUCTION, RENOVATION, MAINTENANCE, DISASTER_RESTORATION
+  status          ProjectStatus @default(DRAFT)
+  
+  // Location (with geocoding)
+  addressLine1    String
+  addressLine2    String?
+  city            String
+  state           String
+  zipCode         String
+  county          String?
+  latitude        Float?
+  longitude       Float?
+  geofenceRadius  Int?      // Meters for photo verification
+  
+  // Timeline
+  startDate       DateTime?
+  endDate         DateTime?
+  estimatedDurationDays Int?
+  actualStartDate DateTime?
+  actualEndDate   DateTime?
+  
+  // Financials
+  contractValue   Float?    // Total contract amount
+  budget          Float?
+  estimatedCost   Float?
+  actualCost      Float     @default(0)
+  retainageRate   Float     @default(0.10) // 10% default holdback
+  retainageHeld   Float     @default(0)    // Accumulated retainage
+  
+  // Scope & Documents
+  scopeOfWork     String?   @db.Text
+  specifications  Document[]
+  blueprints      Document[]
+  contracts       Document[]
+  changeOrders    ChangeOrder[]
+  
+  // Milestones & Payments
+  milestones      Milestone[]
+  payApps         PayApp[]
+  escrow          Escrow?
+  
+  // Compliance & Risk
+  permits         Permit[]
+  insuranceRequirements InsuranceRequirement[]
+  lienWaivers     LienWaiver[]
+  safetyPlans     Document[]
+  
+  // Marketplace Integration
+  jobPostings     JobPosting[]
+  
+  // AI/Analytics
+  riskScore       Float?    // 0-100, calculated by ML model
+  scheduleConfidence Float? // 0-100%
+  budgetConfidence Float?
+  
+  // Metadata
+  tags            String[]  @default([])
+  metadata        Json?
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@map("projects")
+  @@index([gcId])
+  @@index([status])
+  @@index([state])
+  @@index([startDate])
+  @@index([createdAt])
+  @@index([riskScore])
+}
+
+model Milestone {
+  id              String    @id @default(cuid())
+  projectId       String
+  project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  // Identification
+  title           String
+  description     String?   @db.Text
+  sequenceNumber  Int
+  externalRef     String?   // Client's milestone ID
+  
+  // Status & Dates
+  status          MilestoneStatus @default(PENDING)
+  plannedStart    DateTime?
+  plannedEnd      DateTime?
+  actualStart     DateTime?
+  actualEnd       DateTime?
+  submittedAt     DateTime?
+  approvedAt      DateTime?
+  
+  // Financials
+  contractAmount  Float     // Agreed value for this milestone
+  retainageAmount Float?    // Calculated: contractAmount * retainageRate
+  amountClaimed   Float?    // In pay app
+  amountApproved  Float?    // After review
+  amountPaid      Float     @default(0)
+  
+  // Verification Evidence
+  photos          Photo[]
+  documents       Document[]
+  aiVerification  Json?     // { completion_pct: 95, objects_detected: [...] }
+  geofenceVerified Boolean @default(false)
+  
+  // Lien Waiver Linkage
+  lienWaiverId    String?
+  lienWaiver      LienWaiver? @relation(fields: [lienWaiverId], references: [id])
+  
+  // Payment Processing
+  payAppId        String?
+  paymentStatus   String    @default("PENDING") // PENDING, APPROVED, PROCESSING, PAID, FAILED
+  paymentTransactionId String?
+  
+  // Review Workflow
+  reviewedBy      String?   // User ID of approver
+  reviewComments  String?   @db.Text
+  rejectionReason String?
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@map("milestones")
+  @@index([projectId])
+  @@index([status])
+  @@index([plannedEnd])
+  @@index([paymentStatus])
+}
+
+model Photo {
+  id              String    @id @default(cuid())
+  milestoneId     String
+  milestone       Milestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  
+  // Storage
+  s3Key           String    @unique
+  s3Url           String
+  thumbnailKey    String?
+  thumbnailUrl    String?
+  
+  // Metadata
+  fileName        String
+  fileSize        Int       // Bytes
+  mimeType        String
+  dimensions      Json?     // { width, height }
+  
+  // Capture Context
+  capturedAt      DateTime  @default(now())
+  uploadedBy      String    // User ID
+  deviceId        String?   // Mobile device ID
+  ipAddress       String?
+  
+  // Geolocation (for verification)
+  latitude        Float?
+  longitude       Float?
+  accuracy        Float?    // Meters
+  geofenceMatch   Boolean?  // Within project boundary
+  
+  // AI Analysis
+  aiProcessed     Boolean   @default(false)
+  aiAnalysis      Json?     // { objects: [...], completion_estimate: 0.92 }
+  aiConfidence    Float?
+  
+  // Verification
+  verified        Boolean   @default(false)
+  verifiedBy      String?   // User ID or "AI"
+  verifiedAt      DateTime?
+  
+  createdAt       DateTime  @default(now())
+  
+  @@map("milestone_photos")
+  @@index([milestoneId])
+  @@index([uploadedBy])
+  @@index([capturedAt])
+  @@index([latitude, longitude]) // For geospatial queries
+}
+
+// ============= PAYMENT APPLICATIONS (Pay Apps) =============
+model PayApp {
+  id              String    @id @default(cuid())
+  projectId       String
+  project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  // Submission
+  submittedBy     String    // Contractor User ID
+  submittedDate   DateTime  @default(now())
+  periodStart     DateTime?
+  periodEnd       DateTime?
+  
+  // Status Workflow
+  status          PayAppStatus @default(DRAFT)
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  approvedBy      String?
+  approvedAt      DateTime?
+  paidAt          DateTime?
+  
+  // Financial Summary
+  contractAmount  Float     // Total contract value
+  previousPaid    Float     @default(0) // Cumulative prior payments
+  currentClaim    Float     // Amount claimed this period
+  retainageThisPeriod Float? // Calculated
+  retainageCumulative Float? // Total held to date
+  netThisPeriod   Float?    // currentClaim - retainage
+  totalToDate     Float?    // previousPaid + netThisPeriod
+  
+  // Line Items (detailed breakdown)
+  lineItems       LineItem[]
+  
+  // Supporting Docs
+  documentId      String?
+  document        Document?
+  
+  // Milestone Linkage
+  milestoneIds    String[]  @default([])
+  milestones      Milestone[]
+  
+  // Review & Comments
+  reviewComments  String?   @db.Text
+  rejectionReason String?
+  
+  // Payment Execution
+  paymentTransactionId String?
+  paymentMethod   String?   // ACH, Wire, Internal
+  
+  // Compliance
+  lienWaiversAttached Boolean @default(false)
+  lienWaiverIds   String[]  @default([])
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@map("pay_applications")
+  @@index([projectId])
+  @@index([status])
+  @@index([submittedDate])
+  @@index([submittedBy])
+}
+
+model LineItem {
+  id              String    @id @default(cuid())
+  payAppId        String
+  payApp          PayApp    @relation(fields: [payAppId], references: [id], onDelete: Cascade)
+  
+  // Item Details
+  description     String
+  csiCode         String?   // Construction Specifications Institute code
+  unit            String    // EA, LF, SF, CY, HR, LS
+  quantity        Float
+  unitPrice       Float
+  amount          Float     // quantity * unitPrice
+  
+  // Progress Tracking
+  percentComplete Float     @default(0) // 0-100
+  previousComplete Float    @default(0) // For change tracking
+  thisPeriodComplete Float? // Calculated
+  
+  // Materials vs Labor
+  itemType        String    @default("LABOR") // LABOR, MATERIAL, EQUIPMENT, SUBCONTRACT, OTHER
+  supplierId      String?   // If material item
+  
+  // Retainage
+  retainageApplicable Boolean @default(true)
+  retainageAmount Float?    // Calculated
+  
+  @@map("pay_app_line_items")
+  @@index([payAppId])
+  @@index([csiCode])
+}
+
+// ============= LIEN WAIVERS (Digital Exchange) =============
+model LienWaiver {
+  id              String    @id @default(cuid())
+  projectId       String
+  project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  contractorId    String
+  contractor      User      @relation(fields: [contractorId], references: [id])
+  
+  // Waiver Details
+  waiverType      String    // CONDITIONAL_UPON_PAYMENT, UNCONDITIONAL_UPON_PAYMENT, CONDITIONAL_UPON_RECEIPT, UNCONDITIONAL_UPON_RECEIPT
+  waivedAmount    Float
+  waivedThrough   DateTime? // Date through which rights are waived
+  
+  // Legal
+  governingState  String    // 2-letter code
+  propertyAddress String    // Legal description
+  ownerName       String?
+  
+  // Status Workflow
+  status          LienWaiverStatus @default(DRAFT)
+  generatedAt     DateTime?
+  sentAt          DateTime?
+  signedAt        DateTime?
+  verifiedAt      DateTime?
+  
+  // eSignature Integration
+  docusignEnvelopeId String?
+  docusignStatus  String?
+  signatureFields Json?     // Field mapping
+  
+  // Verification
+  verifiedBy      String?   // User ID or "SYSTEM"
+  verificationMethod String? // MANUAL, AI_DOCUMENT, BLOCKCHAIN
+  blockchainTxHash String?  // For immutable audit
+  
+  // Payment Linkage
+  milestoneIds    String[]  @default([])
+  payAppId        String?
+  paymentTransactionId String?
+  
+  // Documents
+  pdfUrl          String?   // Final executed waiver
+  originalDocumentId String?
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@map("lien_waivers")
+  @@index([projectId])
+  @@index([contractorId])
+  @@index([status])
+  @@index([waivedThrough])
+}
+
+// ============= PAYMENTS & LEDGER (Double-Entry) =============
+model Transaction {
+  id              String    @id @default(cuid())
+  
+  // Context
+  projectId       String?
+  project         Project?  @relation(fields: [projectId], references: [id])
+  milestoneId     String?
+  milestone       Milestone? @relation(fields: [milestoneId], references: [id])
+  payAppId        String?
+  lienWaiverId    String?
+  
+  // Parties
+  payerId         String
+  payer           User      @relation("Payer", fields: [payerId], references: [id])
+  payeeId         String
+  payee           User      @relation("Payee", fields: [payeeId], references: [id])
+  
+  // Type & Status
+  type            TransactionType
+  status          TransactionStatus @default(INITIATED)
+  
+  // Amounts (always in USD cents for precision)
+  grossAmount     Int       // Total before fees
+  platformFee     Int       @default(0)
+  processingFee   Int       @default(0)
+  netAmount       Int       // What payee receives
+  currency        String    @default("USD")
+  
+  // Payment Method & External IDs
+  paymentMethod   String    // STRIPE_ACH, STRIPE_CARD, UNIT_ACH, INTERNAL_LEDGER, WIRE
+  stripeChargeId  String?
+  stripeTransferId String?
+  unitTransactionId String?
+  achTraceNumber  String?
+  
+  // Timing
+  initiatedAt     DateTime  @default(now())
+  authorizedAt    DateTime?
+  capturedAt      DateTime?
+  settledAt       DateTime?
+  failedAt        DateTime?
+  
+  // Escrow/Retainage
+  isEscrow        Boolean   @default(false)
+  isRetainage     Boolean   @default(false)
+  releaseCondition String?  // MILESTONE_APPROVED, LIEN_SIGNED, DATE_REACHED
+  
+  // Compliance & Risk
+  riskScore       Float?    // Fraud/risk assessment
+  amlScreened     Boolean   @default(false)
+  ofacScreened    Boolean   @default(false)
+  
+  // Metadata
+  description     String?
+  metadata        Json?
+  idempotencyKey  String?   @unique // Prevent duplicate processing
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@map("transactions")
+  @@index([projectId])
+  @@index([payerId])
+  @@index([payeeId])
+  @@index([status])
+  @@index([initiatedAt])
+  @@index([idempotencyKey], unique: true)
+}
+
+// Double-Entry Ledger Entries (for accounting integrity)
+model LedgerEntry {
+  id              String    @id @default(cuid())
+  
+  // Account (chart of accounts style)
+  account         String    // e.g., "ASSET:CASH:STRIPE", "LIABILITY:RETAINAGE:HELD"
+  accountName     String
+  
+  // Entry Details
+  debit           Int       @default(0)  // In cents
+  credit          Int       @default(0)  // In cents
+  balance         Int?      // Running balance (denormalized for performance)
+  
+  // Linkage
+  transactionId   String?
+  transaction     Transaction? @relation(fields: [transactionId], references: [id])
+  projectId       String?
+  userId          String?
+  
+  // Metadata
+  description     String?
+  reference       String?   // External ref (invoice #, PO #)
+  metadata        Json?
+  
+  createdAt       DateTime  @default(now())
+  
+  @@map("ledger_entries")
+  @@index([account])
+  @@index([transactionId])
+  @@index([createdAt])
+  
+  // Ensure debits = credits at transaction level (application logic)
+}
+
+// User Payment Accounts/Wallets
+model PaymentAccount {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Account Type
+  accountType     String    // BANK_ACCOUNT, STRIPE_CONNECT, UNIT_ACCOUNT, INTERNAL_WALLET
+  
+  // Bank Account Details (encrypted at rest)
+  bankAccountLast4 String?
+  bankRoutingNumber String?  // Encrypted
+  bankAccountNumber String?  // Encrypted
+  bankName        String?
+  accountHolderName String?
+  
+  // External Platform IDs
+  stripeAccountId String?
+  unitAccountId   String?
+  
+  // Internal Wallet (for instant pay, float management)
+  availableBalance Int       @default(0)  // Cents, spendable
+  pendingBalance  Int       @default(0)  // Cents, in transit
+  retainageBalance Int      @default(0)  // Cents, held
+  
+  // Verification & Limits
+  verified        Boolean   @default(false)
+  verifiedAt      DateTime?
+  dailyLimit      Int?      // Cents
+  monthlyLimit    Int?      // Cents
+  
+  // Preferences
+  isPrimary       Boolean   @default(false)
+  instantPayEnabled Boolean @default(false)
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@map("payment_accounts")
+  @@index([userId])
+  @@index([accountType])
+  @@index([stripeAccountId])
+  @@index([unitAccountId])
+}
+
+// Escrow Holds (for milestone-based releases)
+model Escrow {
+  id              String    @id @default(cuid())
+  projectId       String    @unique
+  project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  // Funding
+  fundedAmount    Int       @default(0)  // Cents
+  fundedBy        String?   // User ID or "PLATFORM"
+  fundedAt        DateTime?
+  
+  // Holder (who controls the funds)
+  heldBy          String    // "PLATFORM", "STRIPE", "UNIT", "PARTNER_BANK"
+  heldAccountId   String?   // External account ID
+  
+  // Release Conditions (AND logic - all must be met)
+  releaseConditions Json?   // { milestone_approved: true, lien_signed: true }
+  
+  // Holds (individual milestone/lien holds within escrow)
+  holds           EscrowHold[]
+  
+  // Status
+  status          String    @default("ACTIVE") // ACTIVE, PARTIALLY_RELEASED, RELEASED, REFUNDED
+  releasedAmount  Int       @default(0)
+  releasedAt      DateTime?
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@map("escrows")
+  @@index([projectId])
+  @@index([status])
+}
+
+model EscrowHold {
+  id              String    @id @default(cuid())
+  escrowId        String
+  escrow          Escrow    @relation(fields: [escrowId], references: [id], onDelete: Cascade)
+  
+  // What's being held
+  amount          Int       // Cents
+  reason          String    // MILESTONE_PENDING, LIEN_NOT_SIGNED, DISPUTE, COMPLIANCE_REVIEW
+  referenceType   String?   // MILESTONE, LIEN_WAIVER, CHANGE_ORDER
+  referenceId     String?
+  
+  // Release
+  shouldRelease   Boolean   @default(false)
+  releaseApprovedBy String?
+  releaseApprovedAt DateTime?
+  releasedAt      DateTime?
+  
+  createdAt       DateTime  @default(now())
+  
+  @@map("escrow_holds")
+  @@index([escrowId])
+  @@index([reason])
+}
+
+// ============= MARKETPLACE (Jobs & Hiring) =============
+model JobPosting {
+  id              String    @id @default(cuid())
+  projectId       String?
+  project         Project?  @relation(fields: [projectId], references: [id])
+  
+  postedById      String
+  postedBy        User      @relation("JobPoster", fields: [postedById], references: [id])
+  
+  // Job Details
+  title           String
+  description     String    @db.Text
+  category        String    // ELECTRICIAN, PLUMBER, HVAC, CARPENTER, LABORER, etc.
+  subcategory     String?
+  
+  // Compensation
+  compensationType String    @default("HOURLY") // HOURLY, FIXED_PRICE, T&M
+  hourlyRateMin   Float?
+  hourlyRateMax   Float?
+  fixedPrice      Float?
+  retainageRate   Float?    // Override project default
+  
+  // Schedule
+  startDate       DateTime
+  endDate         DateTime?
+  durationDays    Int?
+  hoursPerWeek    Float?
+  shift           String?   // DAY, NIGHT, WEEKEND, ON_CALL
+  
+  // Location
+  addressLine1    String
+  city            String
+  state           String
+  zipCode         String
+  latitude        Float?
+  longitude       Float?
+  remoteOk        Boolean   @default(false)
+  
+  // Requirements
+  requiredLicenses String[] @default([])
+  requiredCerts   String[]  @default([])
+  minExperienceYears Int?
+  backgroundCheckRequired Boolean @default(true)
+  drugTestRequired Boolean @default(false)
+  
+  // Capacity
+  positionsOpen   Int       @default(1)
+  applicationsCount Int     @default(0)
+  hiredWorkerIds  String[]  @default([])
+  
+  // Status
+  status          JobStatus @default(DRAFT)
+  visibility      String    @default("PUBLIC") // PUBLIC, INVITE_ONLY, PRIVATE
+  
+  // AI Matching
+  aiMatchScore    Json?     // Precomputed match scores for candidates
+  recommendedWorkerIds String[] @default([])
+  
+  // Metadata
+  tags            String[]  @default([])
+  priority        String    @default("NORMAL") // URGENT, NORMAL, LOW
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@map("job_postings")
+  @@index([projectId])
+  @@index([postedById])
+  @@index([category])
+  @@index([state])
+  @@index([startDate])
+  @@index([status])
+}
+
+model JobApplication {
+  id              String    @id @default(cuid())
+  jobId           String
+  job             JobPosting @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  
+  applicantId     String
+  applicant       User      @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+  
+  // Application Content
+  coverLetter     String?   @db.Text
+  proposedRate    Float?
+  availabilityNote String?
+  
+  // Attachments
+  resumeDocumentId String?
+  portfolioUrls   String[]  @default([])
+  
+  // AI Scoring
+  aiMatchScore    Float?    // 0-100
+  aiStrengths     String[]  @default([])
+  aiConcerns      String[]  @default([])
+  
+  // Status Workflow
+  status          ApplicationStatus @default(APPLIED)
+  viewedAt        DateTime?
+  shortlistedAt   DateTime?
+  interviewedAt   DateTime?
+  hiredAt         DateTime?
+  rejectedAt      DateTime?
+  withdrawnAt     DateTime?
+  
+  // Feedback
+  posterNotes     String?   @db.Text
+  rejectionReason String?
+  
+  // If Hired
+  hireStartDate   DateTime?
+  hireEndDate     DateTime?
+  actualHoursWorked Float?
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@map("job_applications")
+  @@index([jobId])
+  @@index([applicantId])
+  @@index([status])
+  @@index([aiMatchScore])
+}
+
+// ============= GOVERNMENT PROCUREMENT =============
+model RFPPosting {
+  id              String    @id @default(cuid())
+  
+  // Source
+  source          String    @default("SAM_GOV") // SAM_GOV, STATE_PORTAL, MANUAL
+  externalId      String?   // SAM.gov Opportunity ID
+  externalUrl     String?
+  
+  // Posting Agency
+  postedByGovId   String?
+  postedByGov     GovernmentProfile? @relation(fields: [postedByGovId], references: [userId])
+  
+  // Opportunity Details
+  title           String
+  description     String    @db.Text
+  solicitationNumber String? @unique
+  naicsCodes      String[]  @default([])
+  pscCodes        String[]  @default([]) // Product Service Codes
+  
+  // Set-Asides & Preferences
+  setAsides       String[]  @default([]) // SDVOSB, WOSB, HUBZone, 8(a), SB
+  unionRequirements Boolean @default(false)
+  buyAmerican     Boolean   @default(false)
+  
+  // Financial
+  estimatedValue  Float?
+  valueRange      String?   // "$100K-$500K"
+  contractType    String?   // FFP, T&M, CPFF, CPIF
+  
+  // Timeline
+  publishedDate   DateTime  @default(now())
+  responseDeadline DateTime
+  awardDate       DateTime?
+  startDate       DateTime?
+  endDate         DateTime?
+  
+  // Location
+  placeOfPerformance String?
+  state           String?
+  county          String?
+  
+  // Documents
+  attachments     Document[]
+  amendmentCount  Int       @default(0)
+  
+  // Status
+  status          RFPStatus @default(OPEN)
+  lastUpdated     DateTime?
+  
+  // AI Analysis
+  aiComplexityScore Float?  // 1-10
+  aiWinProbability Json?   // By contractor profile
+  complianceRequirements Json?
+  
+  // Responses
+  proposals       ProposalSubmission[]
+  
+  createdAt       DateTime  @default(now())
+  
+  @@map("rfp_postings")
+  @@index([postedByGovId])
+  @@index([status])
+  @@index([responseDeadline])
+  @@index([naicsCodes])
+  @@index([setAsides])
+}
+
+model ProposalSubmission {
+  id              String    @id @default(cuid())
+  rfpId           String
+  rfp             RFPPosting @relation(fields: [rfpId], references: [id], onDelete: Cascade)
+  
+  submittedByContractorId String
+  submittedByContractor ContractorProfile @relation(fields: [submittedByContractorId], references: [id])
+  
+  // Content
+  proposalText    String    @db.Text
+  priceProposal   Float?
+  timelineProposal String?
+  
+  // Attachments
+  documents       Document[]
+  
+  // AI Analysis
+  complianceScore Float?    // 0-100 vs RFP requirements
+  winProbability  Float?    // ML prediction
+  strengths       String[]  @default([])
+  weaknesses      String[]  @default([])
+  
+  // Status
+  status          String    @default("SUBMITTED") // SUBMITTED, UNDER_REVIEW, SHORTLISTED, AWARDED, REJECTED
+  submittedAt     DateTime  @default(now())
+  reviewedAt      DateTime?
+  
+  // Feedback (if rejected)
+  feedback        String?   @db.Text
+  
+  @@map("proposal_submissions")
+  @@index([rfpId])
+  @@index([submittedByContractorId])
+  @@index([status])
+  @@index([complianceScore])
+}
+
+// ============= DOCUMENTS & AI PROCESSING =============
+model Document {
+  id              String    @id @default(cuid())
+  
+  // Context
+  projectId       String?
+  project         Project?  @relation(fields: [projectId], references: [id])
+  uploadedBy      String?
+  uploadedByUser  User?     @relation(fields: [uploadedBy], references: [id])
+  
+  // File Metadata
+  fileName        String
+  originalName    String
+  mimeType        String
+  fileSize        Int       // Bytes
+  pageCount       Int?
+  
+  // Storage
+  s3Key           String    @unique
+  s3Url           String
+  thumbnailKey    String?
+  
+  // Classification
+  documentType    String    // CONTRACT, BLUEPRINT, PERMIT, INSURANCE, LIEN_WAIVER, PAY_APP, RFI, CHANGE_ORDER, OTHER
+  category        String?   // Custom taxonomy
+  tags            String[]  @default([])
+  
+  // AI Processing
+  ocrProcessed    Boolean   @default(false)
+  extractedText   String?   @db.Text
+  structuredData  Json?     // Parsed fields
+  entities        Json?     // Names, dates, amounts, addresses
+  aiClassification String?
+  aiConfidence    Float?
+  
+  // Compliance
+  containsPii     Boolean   @default(false)
+  piiRedacted     Boolean   @default(false)
+  retentionPeriod Int?      // Days to retain (compliance)
+  
+  // Versioning
+  version         Int       @default(1)
+  previousVersionId String?
+  isLatest        Boolean   @default(true)
+  
+  // Access Control
+  visibility      String    @default("PROJECT") // PUBLIC, PROJECT, PRIVATE, RESTRICTED
+  allowedUserTypes String[] @default([])
+  
+  // Audit
+  viewedCount     Int       @default(0)
+  downloadedCount Int       @default(0)
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@map("documents")
+  @@index([projectId])
+  @@index([uploadedBy])
+  @@index([documentType])
+  @@index([createdAt])
+}
+
+// ============= COMPLIANCE & AUDIT =============
+model AuditLog {
+  id              String    @id @default(cuid())
+  
+  // Actor
+  actorId         String?
+  actor           User?     @relation(fields: [actorId], references: [id])
+  actorType       String    // USER, SYSTEM, API_KEY, WEBHOOK
+  actorIp         String?
+  actorUserAgent  String?
+  
+  // Action
+  action          String    // CREATE, UPDATE, DELETE, APPROVE, REJECT, PAY, ESCROW_HOLD, etc.
+  entityType      String    // Project, Transaction, User, etc.
+  entityId        String
+  entitySnapshot  Json?     // State after change
+  
+  // Context
+  projectId       String?
+  transactionId   String?
+  
+  // Risk & Compliance
+  riskFlags       String[]  @default([])
+  complianceChecks Json?    // Results of automated checks
+  
+  createdAt       DateTime  @default(now())
+  
+  @@map("audit_logs")
+  @@index([actorId])
+  @@index([entityType, entityId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model Notification {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Content
+  type            String    // PAYMENT_RECEIVED, MILESTONE_APPROVED, BID_WON, COMPLIANCE_ALERT, etc.
+  priority        String    @default("NORMAL") // URGENT, HIGH, NORMAL, LOW
+  title           String
+  message         String    @db.Text
+  
+  // Deep Link
+  actionUrl       String?
+  actionType      String?   // VIEW_PROJECT, REVIEW_PAYMENT, RESPOND_RFP
+  
+  // Entity Reference
+  relatedEntityType String?
+  relatedEntityId String?
+  
+  // Delivery
+  channels        String[]  @default(["IN_APP"]) // IN_APP, EMAIL, SMS, PUSH
+  emailSent       Boolean   @default(false)
+  emailSentAt     DateTime?
+  smsSent         Boolean   @default(false)
+  smsSentAt       DateTime?
+  pushSent        Boolean   @default(false)
+  pushSentAt      DateTime?
+  
+  // Status
+  read            Boolean   @default(false)
+  readAt          DateTime?
+  dismissed       Boolean   @default(false)
+  
+  createdAt       DateTime  @default(now())
+  
+  @@map("notifications")
+  @@index([userId])
+  @@index([type])
+  @@index([read])
+  @@index([createdAt])
+}
+
+// ============= AI/ML FEATURE STORE =============
+model AiModelRun {
+  id              String    @id @default(cuid())
+  
+  // Model Identity
+  modelName       String    // bid_matcher, risk_scorer, document_parser
+  modelVersion    String
+  runId           String    @unique
+  
+  // Input
+  inputHash       String    // Hash of input for deduplication
+  inputMetadata   Json?
+  
+  // Output
+  output          Json
+  confidence      Float?
+  latencyMs       Int
+  
+  // Context
+  userId          String?
+  projectId       String?
+  
+  // Feedback Loop
+  feedbackReceived Boolean @default(false)
+  feedbackValue   Float?    // User rating of prediction quality
+  feedbackAt      DateTime?
+  
+  createdAt       DateTime  @default(now())
+  
+  @@map("ai_model_runs")
+  @@index([modelName, modelVersion])
+  @@index([runId], unique: true)
+  @@index([createdAt])
+}
+
+// ============= SYSTEM CONFIG =============
+model SystemConfig {
+  key             String    @id @unique
+  value           Json
+  description     String?
+  encrypted       Boolean   @default(false)
+  
+  updatedAt       DateTime  @updatedAt
+  
+  @@map("system_config")
+}
+
+// ============= API KEYS & INTEGRATIONS =============
+model ApiKey {
+  id              String    @id @default(cuid())
+  userId          String?
+  user            User?     @relation(fields: [userId], references: [id])
+  
+  name            String
+  keyHash         String    @unique // bcrypt of actual key
+  prefix          String    // For UI display (e.g., "bb_live_***")
+  
+  // Permissions
+  scopes          String[]  @default([]) // "projects:read", "payments:write", etc.
+  rateLimitPerMinute Int   @default(60)
+  
+  // Usage
+  lastUsedAt      DateTime?
+  requestCount    Int       @default(0)
+  
+  // Status
+  active          Boolean   @default(true)
+  expiresAt       DateTime?
+  
+  createdAt       DateTime  @default(now())
+  
+  @@map("api_keys")
+  @@index([userId])
+  @@index([keyHash], unique: true)
+  @@index([prefix])
+}
+
+/////////////////////////////   end of fridsay /////////////////
 
 
+///////////////////////////////////
 
+/////////////////////////////////
 
 
 
