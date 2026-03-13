@@ -1,0 +1,236 @@
+buildbrain-os/
+├── 📦 package.json                    # Root workspace config
+├── 📦 pnpm-workspace.yaml            # pnpm workspaces
+├── 📦 turbo.json                      # Turborepo pipeline config
+├── 📦 docker-compose.yml             # Local dev infrastructure
+├── 📦 .github/workflows/             # CI/CD pipelines
+│   ├── ci.yml
+│   ├── deploy-staging.yml
+│   └── deploy-production.yml
+│
+├── 🗄️ apps/
+│   ├── 🌐 web/                        # Next.js 14 App Router
+│   │   ├── package.json
+│   │   ├── next.config.js
+│   │   ├── tsconfig.json
+│   │   ├── app/
+│   │   │   ├── (auth)/
+│   │   │   │   ├── login/page.tsx
+│   │   │   │   ├── register/page.tsx
+│   │   │   │   └── kyc/page.tsx
+│   │   │   ├── (dashboard)/
+│   │   │   │   ├── layout.tsx
+│   │   │   │   ├── page.tsx
+│   │   │   │   ├── projects/
+│   │   │   │   ├── marketplace/
+│   │   │   │   ├── payments/
+│   │   │   │   └── procurement/
+│   │   │   ├── api/
+│   │   │   │   ├── auth/[...nextauth]/route.ts
+│   │   │   │   ├── graphql/route.ts
+│   │   │   │   ├── webhooks/stripe/route.ts
+│   │   │   │   └── webhooks/unit/route.ts
+│   │   │   └── globals.css
+│   │   ├── components/
+│   │   │   ├── ui/                    # shadcn/ui components
+│   │   │   ├── projects/
+│   │   │   ├── payments/
+│   │   │   ├── marketplace/
+│   │   │   └── layout/
+│   │   ├── lib/
+│   │   │   ├── api/                   # tRPC/GraphQL clients
+│   │   │   ├── hooks/
+│   │   │   ├── utils/
+│   │   │   └── constants.ts
+│   │   └── public/
+│   │
+│   ├── 📱 mobile/                     # React Native (Expo)
+│   │   ├── package.json
+│   │   ├── app.json
+│   │   ├── app/
+│   │   │   ├── (tabs)/
+│   │   │   ├── _layout.tsx
+│   │   │   └── +html.tsx
+│   │   ├── src/
+│   │   │   ├── components/
+│   │   │   ├── screens/
+│   │   │   ├── services/
+│   │   │   └── utils/
+│   │   └── eas.json
+│   │
+│   └── 💻 desktop/                    # Electron wrapper
+│       ├── package.json
+│       ├── main.js
+│       ├── preload.js
+│       └── src/
+│
+├── 🔧 packages/
+│   ├── 🗄️ database/                   # Prisma ORM + migrations
+│   │   ├── package.json
+│   │   ├── prisma/
+│   │   │   ├── schema.prisma         # ← YOUR SCHEMA (enhanced)
+│   │   │   ├── migrations/
+│   │   │   └── seed.ts
+│   │   ├── src/
+│   │   │   ├── client.ts             # Prisma client singleton
+│   │   │   ├── services/
+│   │   │   │   ├── user.service.ts
+│   │   │   │   ├── project.service.ts
+│   │   │   │   ├── payment.service.ts
+│   │   │   │   ├── marketplace.service.ts
+│   │   │   │   └── procurement.service.ts
+│   │   │   └── utils/
+│   │   └── tsconfig.json
+│   │
+│   ├── 🔐 auth/                       # Auth service (NextAuth + custom)
+│   │   ├── package.json
+│   │   ├── src/
+│   │   │   ├── config.ts
+│   │   │   ├── strategies/
+│   │   │   │   ├── credentials.ts
+│   │   │   │   ├── oauth.ts
+│   │   │   │   └── api-key.ts
+│   │   │   ├── middleware.ts
+│   │   │   └── utils/
+│   │   │       ├── jwt.ts
+│   │   │       ├── kyc-verification.ts
+│   │   │       └── permissions.ts
+│   │   └── tsconfig.json
+│   │
+│   ├── 💳 payments/                   # Payment orchestration layer
+│   │   ├── package.json
+│   │   ├── src/
+│   │   │   ├── config/
+│   │   │   │   ├── stripe.config.ts
+│   │   │   │   ├── unit.config.ts
+│   │   │   │   └── ledger.config.ts
+│   │   │   ├── services/
+│   │   │   │   ├── stripe.service.ts    # Connect onboarding, charges
+│   │   │   │   ├── unit.service.ts      # BaaS accounts, ACH, cards
+│   │   │   │   ├── escrow.service.ts    # Milestone holds, releases
+│   │   │   │   ├── lien-waiver.service.ts # Digital waiver exchange
+│   │   │   │   ├── ledger.service.ts    # Double-entry accounting
+│   │   │   │   └── settlement.service.ts # Netting, batch payouts
+│   │   │   ├── types/
+│   │   │   │   └── payment.types.ts
+│   │   │   └── utils/
+│   │   │       ├── fraud-detection.ts
+│   │   │       ├── compliance-checks.ts
+│   │   │       └── webhook-handler.ts
+│   │   └── tsconfig.json
+│   │
+│   ├── 🤖 ai-services/                # AI/ML microservices
+│   │   ├── package.json
+│   │   ├── src/
+│   │   │   ├── bid-matching/
+│   │   │   │   ├── model.ts          # Embedding-based matching
+│   │   │   │   └── scorer.ts         # Win probability calculation
+│   │   │   ├── document-ai/
+│   │   │   │   ├── parser.ts         # AWS Textract integration
+│   │   │   │   ├── validator.ts      # Compliance rule engine
+│   │   │   │   └── extractor.ts      # Structured data extraction
+│   │   │   ├── image-verification/
+│   │   │   │   ├── milestone-check.ts # Rekognition for progress photos
+│   │   │   │   └── geofence.ts       # Location verification
+│   │   │   ├── risk-scoring/
+│   │   │   │   ├── underwriting.ts   # Contractor risk assessment
+│   │   │   │   └── fraud-model.ts    # Anomaly detection
+│   │   │   └── utils/
+│   │   │       └── vector-store.ts   # Pinecone/Weaviate integration
+│   │   └── tsconfig.json
+│   │
+│   ├── 🏛️ procurement/                # Government procurement engine
+│   │   ├── package.json
+│   │   ├── src/
+│   │   │   ├── sam-gov/
+│   │   │   │   ├── client.ts         # SAM.gov API wrapper
+│   │   │   │   ├── opportunity-sync.ts # Daily opportunity ingestion
+│   │   │   │   └── entity-verify.ts  # UEI/SAM registration checks
+│   │   │   ├── rfp-engine/
+│   │   │   │   ├── matcher.ts        # AI-powered bid recommendations
+│   │   │   │   ├── compliance-checker.ts # NAICS/size standard validation
+│   │   │   │   └── proposal-builder.ts # Auto-generated proposal drafts
+│   │   │   ├── contract-management/
+│   │   │   │   ├── tracker.ts        # Milestone/deliverable tracking
+│   │   │   │   └── reporting.ts      # FAR/DFARS compliance reports
+│   │   │   └── utils/
+│   │   │       └── naics-database.ts
+│   │   └── tsconfig.json
+│   │
+│   ├── 🔔 notifications/              # Real-time notification service
+│   │   ├── package.json
+│   │   ├── src/
+│   │   │   ├── providers/
+│   │   │   │   ├── email.ts          # Resend/SendGrid
+│   │   │   │   ├── sms.ts            # Twilio
+│   │   │   │   ├── push.ts           # Expo/Firebase
+│   │   │   │   └── websocket.ts      # Socket.io
+│   │   │   ├── templates/
+│   │   │   │   ├── payment-received.tsx
+│   │   │   │   ├── milestone-complete.tsx
+│   │   │   │   ├── bid-won.tsx
+│   │   │   │   └── compliance-alert.tsx
+│   │   │   └── dispatcher.ts
+│   │   └── tsconfig.json
+│   │
+│   └── 🧰 shared/                     # Shared utilities & types
+│       ├── package.json
+│       ├── src/
+│       │   ├── types/
+│       │   │   ├── index.ts          # Export all types
+│       │   │   ├── user.types.ts
+│       │   │   ├── project.types.ts
+│       │   │   ├── payment.types.ts
+│       │   │   └── api.types.ts
+│       │   ├── utils/
+│       │   │   ├── currency.ts
+│       │   │   ├── dates.ts
+│       │   │   ├── validation.ts
+│       │   │   └── errors.ts
+│       │   ├── constants/
+│       │   │   ├── trades.ts         # Skilled trade definitions
+│       │   │   ├── states.ts         # US state regulations
+│       │   │   └── compliance.ts     # Regulatory codes
+│       │   └── config/
+│       │       └── environment.ts
+│       └── tsconfig.json
+│
+├── 🐳 infrastructure/
+│   ├── docker/
+│   │   ├── postgres/Dockerfile
+│   │   ├── redis/Dockerfile
+│   │   └── nginx/Dockerfile
+│   ├── k8s/                          # Kubernetes manifests (prod)
+│   │   ├── namespaces/
+│   │   ├── deployments/
+│   │   ├── services/
+│   │   └── ingress/
+│   ├── terraform/                    # IaC for AWS
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   ├── modules/
+│   │   │   ├── vpc/
+│   │   │   ├── rds/
+│   │   │   ├── ecs/
+│   │   │   └── s3/
+│   │   └── outputs.tf
+│   └── scripts/
+│       ├── bootstrap.sh              # One-command dev env setup
+│       ├── migrate.sh                # Safe migration runner
+│       └── backup.sh                 # Database backup automation
+│
+├── 📚 docs/
+│   ├── ARCHITECTURE.md
+│   ├── API.md
+│   ├── DEPLOYMENT.md
+│   ├── COMPLIANCE.md                 # PCI, SOC2, state licensing
+│   └── RUNBOOKS/
+│       ├── incident-response.md
+│       ├── payment-failure.md
+│       └── kyc-rejection.md
+│
+└── 🧪 tests/
+    ├── e2e/                          # Playwright/Cypress
+    ├── integration/                  # Supertest + test DB
+    ├── unit/                         # Jest/Vitest
+    └── fixtures/                     # Test data factories
